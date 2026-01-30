@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Don't Look Back</title>
+<style>
+  body {
+    margin: 0;
+    background: black;
+    color: white;
+    font-family: monospace;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  #game {
+    text-align: center;
+  }
+  #hallway {
+    margin: 20px;
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+  .warning {
+    color: red;
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div id="hallway">You are walking down a dark hallway.</div>
+  <div id="status">Fear: 0</div>
+  <div>→ Walk forward | ← Look back</div>
+</div>
+
+<script>
+let fear = 0;
+let steps = 0;
+let alive = true;
+
+document.addEventListener("keydown", e => {
+  if (!alive) return;
+
+  if (e.key === "ArrowRight") {
+    steps++;
+    document.getElementById("hallway").textContent =
+      "You walk forward. The silence grows heavier.";
+  }
+
+  if (e.key === "ArrowLeft") {
+    fear++;
+    document.getElementById("hallway").innerHTML =
+      "<span class='warning'>You looked back. Something feels closer.</span>";
+  }
+
+  document.getElementById("status").textContent = "Fear: " + fear;
+
+  if (fear >= 5) {
+    alive = false;
+    document.getElementById("hallway").innerHTML =
+      "<span class='warning'>It was right behind you.</span>";
+    document.getElementById("status").textContent = "GAME OVER";
+  }
+});
+</script>
+
+</body>
+</html>
