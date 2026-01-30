@@ -2,68 +2,110 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Don't Look Back</title>
+
 <style>
+  * {
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     margin: 0;
     background: black;
     color: white;
     font-family: monospace;
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     height: 100vh;
   }
+
   #game {
     text-align: center;
+    width: 90%;
+    max-width: 400px;
   }
+
   #hallway {
-    margin: 20px;
+    margin: 20px 0;
     font-size: 18px;
-    letter-spacing: 2px;
+    line-height: 1.5;
+    min-height: 80px;
   }
+
+  #status {
+    margin-bottom: 20px;
+  }
+
+  button {
+    background: #111;
+    color: white;
+    border: 1px solid #444;
+    padding: 12px 16px;
+    margin: 8px;
+    font-size: 16px;
+    width: 140px;
+  }
+
+  button:active {
+    background: #222;
+  }
+
   .warning {
     color: red;
   }
+
+  .hidden {
+    display: none;
+  }
 </style>
 </head>
+
 <body>
 
 <div id="game">
-  <div id="hallway">You are walking down a dark hallway.</div>
+  <div id="hallway">
+    You are walking down a dark hallway.
+  </div>
+
   <div id="status">Fear: 0</div>
-  <div>→ Walk forward | ← Look back</div>
+
+  <div id="controls">
+    <button onclick="walk()">Walk Forward</button>
+    <button onclick="lookBack()">Look Back</button>
+  </div>
 </div>
 
 <script>
 let fear = 0;
-let steps = 0;
 let alive = true;
 
-document.addEventListener("keydown", e => {
+function updateText(text, isWarning = false) {
+  const hall = document.getElementById("hallway");
+  hall.innerHTML = isWarning ? `<span class="warning">${text}</span>` : text;
+  document.getElementById("status").textContent = "Fear: " + fear;
+}
+
+function walk() {
+  if (!alive) return;
+  updateText("You walk forward. The silence gets heavier.");
+}
+
+function lookBack() {
   if (!alive) return;
 
-  if (e.key === "ArrowRight") {
-    steps++;
-    document.getElementById("hallway").textContent =
-      "You walk forward. The silence grows heavier.";
-  }
-
-  if (e.key === "ArrowLeft") {
-    fear++;
-    document.getElementById("hallway").innerHTML =
-      "<span class='warning'>You looked back. Something feels closer.</span>";
-  }
-
-  document.getElementById("status").textContent = "Fear: " + fear;
+  fear++;
+  updateText("You looked back. Something feels closer.", true);
 
   if (fear >= 5) {
     alive = false;
-    document.getElementById("hallway").innerHTML =
-      "<span class='warning'>It was right behind you.</span>";
+    updateText("It was right behind you.", true);
     document.getElementById("status").textContent = "GAME OVER";
+    document.getElementById("controls").classList.add("hidden");
   }
-});
+}
 </script>
 
 </body>
