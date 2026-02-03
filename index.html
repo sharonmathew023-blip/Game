@@ -1,139 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>THE STATIC PRO</title>
-<style>
-:root{
-  --bg:#050505;
-  --fg:#a8a8a8;
-  --green:#33ff00;
-  --yellow:#ffcc00;
-  --red:#ff0000;
-}
-*{box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent;}
-body{margin:0;background:var(--bg);color:var(--fg);font-family:Courier New, monospace;overflow:hidden;}
-#rotate-warning{position:fixed;inset:0;background:black;color:white;display:none;align-items:center;justify-content:center;text-align:center;z-index:999;}
-@media (orientation:portrait){#rotate-warning{display:flex;}#app{display:none;}}
-#app{display:grid;grid-template-rows:50px 1fr 220px;height:100vh;grid-template-columns:1fr;gap:0;}
-
-/* STATUS */
-#status{display:flex;justify-content:space-between;padding:5px 20px;background:#111;font-size:12px;border-bottom:1px solid #333;}
-.bar{width:90px;height:6px;background:#333;}
-.fill{height:100%;}
-#sanity{background:#4444ff;}
-#power{background:var(--green);}
-#radar{position:absolute;top:5px;right:20px;width:60px;height:60px;border:1px solid #333;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;}
-
-/* MAIN AREA */
-#main{display:grid;grid-template-rows:120px 1fr;padding:10px;overflow:hidden;}
-#visualizer{background:black;display:flex;align-items:center;border:1px solid #333;}
-#wave{height:2px;width:100%;background:var(--green);box-shadow:0 0 8px var(--green);transition:transform 0.1s;}
-#log{overflow-y:auto;font-size:14px;line-height:1.6;}
-.entry{margin-bottom:10px;animation:fade 0.4s forwards;}
-.system{color:var(--green);}
-.danger{color:var(--red);}
-@keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
-#controls{background:#0a0a0a;border-top:2px solid #333;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;padding:15px;}
-button{background:#111;border:1px solid #444;color:white;font-family:inherit;letter-spacing:2px;font-size:15px;}
-button:active{background:#222;}
-.glitch{animation:shake 0.2s infinite;}
-@keyframes shake{0%{transform:translate(0)}25%{transform:translate(2px,2px)}50%{transform:translate(-2px,2px)}75%{transform:translate(2px,-2px)}100%{transform:translate(0)}}
-#over{position:fixed;inset:0;background:black;display:none;align-items:center;justify-content:center;flex-direction:column;z-index:100;}
-#over h1{color:red;letter-spacing:4px;margin-bottom:10px;}
-</style>
+  <meta charset="UTF-8" />
+  <title>3D Survival Test with Auto Day/Night</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { margin:0; overflow:hidden; background:#202020; }
+    canvas { display:block; }
+  </style>
 </head>
 <body>
-<div id="rotate-warning">ROTATE YOUR DEVICE<br>LANDSCAPE ONLY</div>
-<div id="app">
-  <div id="status">
-    <div>SANITY <div class="bar"><div id="sanity" class="fill" style="width:100%"></div></div></div>
-    <div>PWR <div class="bar"><div id="power" class="fill" style="width:100%"></div></div></div>
-    <div id="radar">100%</div>
-  </div>
-  <div id="main">
-    <div id="visualizer"><div id="wave"></div></div>
-    <div id="log"></div>
-  </div>
-  <div id="controls">
-    <button onclick="scan()">SCAN</button>
-    <button onclick="move()">MOVE</button>
-    <button onclick="interact()">INTERACT</button>
-    <button onclick="listen()">LISTEN</button>
-  </div>
-</div>
-<div id="over">
-  <h1 id="end-title">GAME OVER</h1>
-  <p id="end-reason"></p>
-  <button onclick="location.reload()">REBOOT</button>
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-// --- AUDIO ENGINE ---
-const ctx = new (window.AudioContext||window.webkitAudioContext)();
-function noise(vol=0.01){
-  const buffer=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);
-  const data=buffer.getChannelData(0);
-  for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
-  const src=ctx.createBufferSource();src.buffer=buffer;src.loop=true;
-  const gain=ctx.createGain();gain.gain.value=vol;
-  src.connect(gain).connect(ctx.destination);src.start();
-  return gain;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB); // start as day
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(0, 1.5, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+// Cube
+const geometry = new THREE.BoxGeometry();
+const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+const cube = new THREE.Mesh(geometry, material);
+scene.add(cube);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(5, 10, 5);
+scene.add(light);
+
+camera.lookAt(cube.position);
+
+// Audio
+const listener = new THREE.AudioListener();
+camera.add(listener);
+
+const attackSound = new THREE.Audio(listener);
+const hideSound = new THREE.Audio(listener);
+const audioLoader = new THREE.AudioLoader();
+
+audioLoader.load('attack.mp3', buffer => {
+    attackSound.setBuffer(buffer);
+    attackSound.setLoop(false);
+    attackSound.setVolume(0.5);
+});
+
+audioLoader.load('hide.mp3', buffer => {
+    hideSound.setBuffer(buffer);
+    hideSound.setLoop(false);
+    hideSound.setVolume(0.5);
+});
+
+// Day/Night system
+let isDay = true;
+const dayDuration = 15000; // 15 seconds day
+const nightDuration = 10000; // 10 seconds night
+
+function switchDayNight() {
+    isDay = !isDay;
+    if(isDay) {
+        scene.background.set(0x87CEEB); // day sky blue
+        attackSound.play();
+        setTimeout(switchDayNight, dayDuration);
+    } else {
+        scene.background.set(0x0a0a2a); // night dark blue
+        hideSound.play();
+        setTimeout(switchDayNight, nightDuration);
+    }
 }
-function tone(freq,dur=0.3,type='sawtooth'){
-  const o=ctx.createOscillator();const g=ctx.createGain();
-  o.frequency.value=freq;o.type=type;g.gain.value=0.15;
-  o.connect(g).connect(ctx.destination);o.start();
-  g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
-  o.stop(ctx.currentTime+dur);
+
+// Start the cycle
+setTimeout(switchDayNight, dayDuration);
+
+function animate() {
+    requestAnimationFrame(animate);
+    cube.rotation.y += 0.01;
+    renderer.render(scene, camera);
 }
 
-// --- GAME STATE ---
-let sanity=100,power=100,monster=100,items={},turn=0;
-const log=document.getElementById('log');
-const wave=document.getElementById('wave');
-const radar=document.getElementById('radar');
+window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-function print(txt,cls=''){const d=document.createElement('div');d.className='entry '+cls;d.textContent='> '+txt;log.appendChild(d);log.scrollTop=log.scrollHeight;}
-
-function updateUI(){
-  document.getElementById('sanity').style.width=sanity+'%';
-  document.getElementById('power').style.width=power+'%';
-  radar.textContent=Math.max(0,monster)+'%';
-  radar.style.color=monster>60?'var(--green)':monster>30?'var(--yellow)':'var(--red)';
-  if(sanity<30) document.body.classList.add('glitch'); else document.body.classList.remove('glitch');
-}
-
-// --- ACTIONS ---
-function scan(){
-  tone(700,0.1,'sine');monster-=10;print(monster<40?"ENEMY VERY CLOSE":"Radar shows nothing unusual",monster<40?'danger':'');
-}
-function move(){power-=5;monster-=15;turn++;print("You move forward.");randomEvent();updateUI();checkEnd();}
-function interact(){sanity-=10;tone(120,0.6);print("You interact with something... It felt wrong.","danger");randomEvent();updateUI();checkEnd();}
-function listen(){sanity+=5;print("You focus and listen to whispers...","danger");tone(60,1);randomEvent();updateUI();checkEnd();}
-
-// --- EVENTS ---
-function randomEvent(){
-  if(Math.random()<0.3){
-    const msgs=["Footsteps nearby...","A whisper echoes...","Something scratches the walls..."];
-    const m=msgs[Math.floor(Math.random()*msgs.length)];
-    print(m,'danger');tone(80,0.3);
-    monster-=5;
-  }
-}
-
-// --- CHECK ENDINGS ---
-function checkEnd(){
-  updateUI();
-  wave.style.transform=`scaleY(${1+(100-monster)/20})`;
-  if(monster<=0){endGame("CAUGHT BY THE ENTITY");}
-  else if(sanity<=0){endGame("INSANITY CONSUMED YOU");}
-  else if(power<=0){endGame("BATTERY DIED. DARKNESS CONSUMES YOU.");}
-  else if(turn>30){endGame("You survived the ordeal.",true);}
-}
-
-// --- ENDING ---
-function endGame(msg,win=false){
-  document.getElementById
+animate();
+</script>
+</body>
+</html>
