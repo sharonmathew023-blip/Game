@@ -1,96 +1,241 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>3D Survival Test with Auto Day/Night</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
-    body { margin:0; overflow:hidden; background:#202020; }
-    canvas { display:block; }
-  </style>
+<meta charset="UTF-8">
+<title>Full Survival Game</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { margin:0; overflow:hidden; background:#87CEEB; font-family:sans-serif; }
+  canvas { display:block; }
+  #ui { position:absolute; top:10px; left:10px; color:white; z-index:10; }
+  #ui div { margin-bottom:5px; }
+  #upgrade {
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    background: rgba(0,0,0,0.6); padding:10px; border-radius:8px;
+    display:flex; gap:10px;
+  }
+  #upgrade button { padding:5px 10px; }
+</style>
 </head>
 <body>
+
+<div id="ui">
+  <div>Health: <span id="health">100</span></div>
+  <div>Points: <span id="points">0</span></div>
+</div>
+
+<div id="upgrade" style="display:none;">
+  <button onclick="upgrade('damage')">Upgrade Damage</button>
+  <button onclick="upgrade('speed')">Upgrade Speed</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
+
+// -------------------- Scene Setup --------------------
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB); // start as day
+scene.background = new THREE.Color(0x87CEEB);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.position.set(0, 1.5, 5);
+camera.position.set(0,1.5,5);
+camera.lookAt(0,0,0);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-// Cube
-const geometry = new THREE.BoxGeometry();
-const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-const cube = new THREE.Mesh(geometry, material);
-scene.add(cube);
+// -------------------- Lights --------------------
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff,0.8);
+dirLight.position.set(5,10,5);
+scene.add(dirLight);
 
-// Lights
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-const light = new THREE.DirectionalLight(0xffffff, 0.8);
-light.position.set(5, 10, 5);
-scene.add(light);
+// -------------------- Player --------------------
+const playerGeo = new THREE.BoxGeometry();
+const playerMat = new THREE.MeshStandardMaterial({color:0x00ff00});
+const player = new THREE.Mesh(playerGeo, playerMat);
+scene.add(player);
+player.position.set(0,0,0);
 
-camera.lookAt(cube.position);
+let health = 100;
+let points = 0;
+let damage = 1;
+let speed = 0.05;
 
-// Audio
-const listener = new THREE.AudioListener();
-camera.add(listener);
+// -------------------- Enemies --------------------
+const enemies = [];
+const enemyGeo = new THREE.BoxGeometry();
+const maxEnemies = 7;
 
-const attackSound = new THREE.Audio(listener);
-const hideSound = new THREE.Audio(listener);
-const audioLoader = new THREE.AudioLoader();
+function spawnEnemy(){
+    if(enemies.length >= maxEnemies) return;
+    const enemyMat = new THREE.MeshStandardMaterial({color:0xff0000});
+    const enemy = new THREE.Mesh(enemyGeo, enemyMat);
+    const angle = Math.random()*Math.PI*2;
+    const radius = 3 + Math.random()*2;
+    enemy.position.set(Math.cos(angle)*radius,0,Math.sin(angle)*radius);
+    enemy.health = 3 + Math.floor(Math.random()*3); // random health 3-5
+    scene.add(enemy);
+    enemies.push(enemy);
+}
 
-audioLoader.load('attack.mp3', buffer => {
-    attackSound.setBuffer(buffer);
-    attackSound.setLoop(false);
-    attackSound.setVolume(0.5);
+// initial spawn
+for(let i=0;i<3;i++) spawnEnemy();
+
+// -------------------- Projectiles --------------------
+const projectiles = [];
+const projGeo = new THREE.BoxGeometry(0.1,0.1,0.1);
+const projMat = new THREE.MeshStandardMaterial({color:0xffff00});
+
+function shootProjectile(){
+    const proj = new THREE.Mesh(projGeo, projMat.clone());
+    proj.position.set(player.position.x,0,player.position.z);
+    proj.forward = new THREE.Vector3(0,0,-1);
+    scene.add(proj);
+    projectiles.push(proj);
+}
+
+// tap to shoot
+window.addEventListener('touchstart', e=>{
+    if(e.touches.length===1) shootProjectile();
 });
 
-audioLoader.load('hide.mp3', buffer => {
-    hideSound.setBuffer(buffer);
-    hideSound.setLoop(false);
-    hideSound.setVolume(0.5);
+// -------------------- Touch movement --------------------
+let touchStart = null;
+
+window.addEventListener('touchstart', e=>{
+    if(e.touches.length===1) touchStart = e.touches[0];
 });
 
-// Day/Night system
+window.addEventListener('touchmove', e=>{
+    if(!touchStart) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - touchStart.clientX;
+    const dz = touch.clientY - touchStart.clientY;
+    player.position.x += dx*speed*0.5;
+    player.position.z += dz*speed*0.5;
+    touchStart = touch;
+});
+
+window.addEventListener('touchend', e=>{
+    touchStart = null;
+});
+
+// -------------------- Day/Night Cycle --------------------
 let isDay = true;
-const dayDuration = 15000; // 15 seconds day
-const nightDuration = 10000; // 10 seconds night
+const dayDuration = 300000;  // 5 min
+const nightDuration = 180000; // 3 min
 
-function switchDayNight() {
+function switchDayNight(){
     isDay = !isDay;
-    if(isDay) {
-        scene.background.set(0x87CEEB); // day sky blue
-        attackSound.play();
-        setTimeout(switchDayNight, dayDuration);
-    } else {
-        scene.background.set(0x0a0a2a); // night dark blue
-        hideSound.play();
-        setTimeout(switchDayNight, nightDuration);
+    scene.background.set(isDay ? 0x87CEEB : 0x0a0a2a);
+    setTimeout(switchDayNight, isDay ? dayDuration : nightDuration);
+}
+setTimeout(switchDayNight, dayDuration);
+
+// -------------------- Enemy Movement --------------------
+const enemySpeedDay = 0.01;
+const enemySpeedNight = 0.03;
+
+function moveEnemies(){
+    enemies.forEach((e,index)=>{
+        const dx = player.position.x - e.position.x;
+        const dz = player.position.z - e.position.z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+
+        // collision with player
+        if(dist<0.5){
+            health -= 0.2;
+            if(health<=0) gameOver();
+        }
+
+        const speedFactor = isDay ? enemySpeedDay : enemySpeedNight;
+        if(dist>0.1){
+            e.position.x += dx/dist*speedFactor;
+            e.position.z += dz/dist*speedFactor;
+        }
+    });
+}
+
+// -------------------- Projectiles Update --------------------
+function updateProjectiles(){
+    projectiles.forEach((p,index)=>{
+        p.position.z -= 0.12;
+        enemies.forEach((e,eIndex)=>{
+            const dx = p.position.x - e.position.x;
+            const dz = p.position.z - e.position.z;
+            const dist = Math.sqrt(dx*dx + dz*dz);
+            if(dist<0.5){
+                e.health -= damage;
+                scene.remove(p);
+                projectiles.splice(index,1);
+                if(e.health<=0){
+                    scene.remove(e);
+                    enemies.splice(eIndex,1);
+                    points += 5;
+                }
+            }
+        });
+        if(Math.abs(p.position.x)>10 || Math.abs(p.position.z)>10){
+            scene.remove(p);
+            projectiles.splice(index,1);
+        }
+    });
+}
+
+// -------------------- Upgrade System --------------------
+const upgradeUI = document.getElementById('upgrade');
+function showUpgrade(){ upgradeUI.style.display = 'flex'; }
+function hideUpgrade(){ upgradeUI.style.display = 'none'; }
+function upgrade(type){
+    if(type==='damage') damage += 1;
+    if(type==='speed') speed += 0.01;
+    hideUpgrade();
+}
+function checkUpgrade(){
+    if(points>0 && points%20===0){
+        showUpgrade();
     }
 }
 
-// Start the cycle
-setTimeout(switchDayNight, dayDuration);
-
-function animate() {
-    requestAnimationFrame(animate);
-    cube.rotation.y += 0.01;
-    renderer.render(scene, camera);
+// -------------------- Game Over --------------------
+function gameOver(){
+    alert("Game Over! Points: "+Math.floor(points));
+    location.reload();
 }
 
-window.addEventListener("resize", () => {
+// -------------------- Animate --------------------
+function animate(){
+    requestAnimationFrame(animate);
+
+    player.rotation.y += 0.01;
+
+    moveEnemies();
+    updateProjectiles();
+
+    // points increase over time
+    points += 0.02;
+    document.getElementById('health').innerText = Math.floor(health);
+    document.getElementById('points').innerText = Math.floor(points);
+
+    checkUpgrade();
+
+    // spawn enemies dynamically
+    if(Math.random()<0.003) spawnEnemy();
+
+    renderer.render(scene,camera);
+}
+
+// -------------------- Resize --------------------
+window.addEventListener('resize', ()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 animate();
+
 </script>
 </body>
 </html>
