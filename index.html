@@ -1,195 +1,329 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Orbitron Strike: Final Fix</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; }
-        
-        /* UI ELEMENTS */
-        #hud { position: fixed; top: 20px; left: 20px; color: #00ffcc; z-index: 100; font-size: 16px; pointer-events: none; background: rgba(0,0,0,0.4); padding: 10px; border-left: 3px solid #00ffcc; }
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none; }
-        #loading { position: fixed; inset: 0; background: #000; color: #ffff00; display: flex; align-items: center; justify-content: center; z-index: 1000; font-size: 18px; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mobile Zombie FPS</title>
+<style>
+  body { margin:0; overflow:hidden; background:#000; touch-action: none; user-select: none; -webkit-user-select: none; }
+  
+  #hud { position:fixed; top:10px; left:10px; color:#0f0; font-family:sans-serif; font-size:16px; font-weight:bold; z-index:100; text-shadow: 1px 1px 0 #000; }
+  
+  /* Aim Zone: Covers the screen so you can swipe anywhere to look */
+  #aim-zone { position: fixed; top:0; left:0; width:100%; height:100%; z-index: 10; }
 
-        /* CONTROLS - Fixed Layering */
-        #joystick-zone { position: fixed; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 110; touch-action: none; }
-        #knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 15px #00ffcc; pointer-events: none; }
-        
-        #shoot-btn { position: fixed; bottom: 50px; right: 50px; width: 90px; height: 90px; background: rgba(255,0,0,0.2); border: 4px solid #ff0000; border-radius: 50%; z-index: 110; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
-        #look-layer { position: fixed; inset: 0; z-index: 10; pointer-events: auto; }
-    </style>
+  /* Left Joystick Container */
+  #stick-container { position:fixed; bottom:40px; left:30px; width:120px; height:120px; z-index: 20; }
+  .joystick-base { width:100%; height:100%; background:rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); border-radius:50%; position:relative; }
+  .knob { position:absolute; width:50px; height:50px; background:rgba(0, 255, 0, 0.5); border-radius:50%; top:50%; left:50%; transform: translate(-50%, -50%); pointer-events: none; }
+
+  /* Shoot Button */
+  #shootBtn { position:fixed; bottom:100px; right:40px; width:80px; height:80px; background:rgba(255,50,0,0.4); border:2px solid orange; border-radius:50%; z-index:30; display:flex; justify-content:center; align-items:center; color:white; font-family:sans-serif; font-weight:bold; font-size: 14px;}
+  #shootBtn:active { background:rgba(255,50,0,0.8); }
+</style>
 </head>
 <body>
 
-    <div id="loading">SYNCING NEURAL LINK...</div>
-    <div id="hud">HP: <span id="hp">100</span> | KILLS: <span id="kills">0</span></div>
-    <div id="crosshair"></div>
-    <div id="look-layer"></div>
-    <div id="joystick-zone"><div id="knob"></div></div>
-    <div id="shoot-btn"></div>
+<div id="aim-zone"></div>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+<div id="hud">HP: <span id="hp">100</span> | Kills: <span id="kills">0</span></div>
+
+<div id="stick-container">
+    <div class="joystick-base" id="stick-left">
+        <div class="knob"></div>
+    </div>
+</div>
+
+<div id="shootBtn">FIRE</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// --- Configuration ---
+const CONFIG = {
+    sensitivity: 0.0025, // Lowered sensitivity
+    recoilDistance: 0.05, // Lowered recoil distance
+    walkSpeed: 0.1
+};
+
+// --- Scene & Camera ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x203040); // Twilight blue
+scene.fog = new THREE.Fog(0x203040, 10, 60);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.rotation.order = 'YXZ'; // Important for FPS camera
+camera.position.set(0, 1.6, 5);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+document.body.appendChild(renderer.domElement);
+
+// --- Lighting ---
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+
+// --- Ground & Obstacles ---
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(100,100),
+  new THREE.MeshStandardMaterial({ color:0x333333, roughness: 0.8 })
+);
+ground.rotation.x = -Math.PI/2;
+scene.add(ground);
+
+// Random Obstacles
+const boxMat = new THREE.MeshStandardMaterial({color: 0x555555});
+for(let i=0; i<15; i++) {
+    const h = 1 + Math.random() * 2;
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1 + Math.random()*2, h, 1 + Math.random()*2), boxMat);
+    let x = (Math.random() - 0.5) * 80;
+    let z = (Math.random() - 0.5) * 80;
+    if(Math.abs(x) < 5 && Math.abs(z) < 5) x += 10; // Keep spawn clear
+    mesh.position.set(x, h/2, z);
+    scene.add(mesh);
+}
+
+// --- Player State ---
+const player = {
+    yaw: 0,
+    pitch: 0
+};
+const input = {
+    move: { x: 0, y: 0 }
+};
+
+// --- Asset Loading ---
+const gltfLoader = new GLTFLoader();
+const state = { gun: null, zombies: [], zombieBase: null };
+
+// Gun Container (Attached to Camera)
+const gunGroup = new THREE.Group();
+camera.add(gunGroup);
+
+// Load Gun
+gltfLoader.load('assets/models/gun.glb', (gltf) => {
+    state.gun = gltf.scene;
+    state.gun.scale.set(0.3, 0.3, 0.3);
+    state.gun.position.set(0.3, -0.35, -0.7); // Adjust based on your model
+    state.gun.rotation.y = Math.PI; // Face forward
+    gunGroup.add(state.gun);
+}, undefined, (err) => {
+    console.warn("Gun model not found, using placeholder box.");
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.5), new THREE.MeshStandardMaterial({color:0x444444}));
+    box.position.set(0.2, -0.2, -0.5);
+    gunGroup.add(box);
+});
+
+// Load Zombie Base
+gltfLoader.load('assets/models/zombie.glb', (gltf) => {
+    state.zombieBase = gltf.scene;
+    spawnZombies(5);
+}, undefined, (err) => {
+    console.warn("Zombie model not found, using placeholder box.");
+    state.zombieBase = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.8, 0.8), new THREE.MeshStandardMaterial({color:0x00ff00}));
+    spawnZombies(5);
+});
+
+function spawnZombies(count){
+  for(let i=0;i<count;i++){
+    const z = state.zombieBase.clone();
+    const angle = Math.random()*Math.PI*2;
+    const dist = 20 + Math.random()*15;
+    z.position.set(Math.cos(angle)*dist, 0, Math.sin(angle)*dist);
+    // Fix height if it's a model vs a box
+    if(z.type === 'Group') z.position.y = 0; else z.position.y = 0.9;
+    
+    z.userData = {hp:30, speed:0.02 + Math.random()*0.02}; // Random speed
+    scene.add(z);
+    state.zombies.push(z);
+  }
+}
+
+// --- Controls: Swipe to Aim (Camera) ---
+let lastTouchX = 0;
+let lastTouchY = 0;
+const aimZone = document.getElementById('aim-zone');
+
+aimZone.addEventListener('touchstart', (e) => {
+    // Only track the first finger that touches the aim zone
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+}, {passive: false});
+
+aimZone.addEventListener('touchmove', (e) => {
+    e.preventDefault(); // Prevent scrolling
+    const touch = e.touches[0];
+    
+    const deltaX = touch.clientX - lastTouchX;
+    const deltaY = touch.clientY - lastTouchY;
+
+    // Update Rotation
+    player.yaw -= deltaX * CONFIG.sensitivity;
+    player.pitch -= deltaY * CONFIG.sensitivity;
+
+    // Clamp Pitch (Up/Down limit)
+    player.pitch = Math.max(-1.5, Math.min(1.5, player.pitch));
+
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+
+    // Apply to camera
+    camera.rotation.set(player.pitch, player.yaw, 0);
+}, {passive: false});
+
+
+// --- Controls: Left Joystick (Movement) ---
+const stickZone = document.getElementById('stick-left');
+const knob = stickZone.querySelector('.knob');
+let joystickId = null;
+const joyRadius = 40;
+
+stickZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joystickId = t.identifier;
+    updateJoystick(t);
+}, {passive:false});
+
+stickZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for(let i=0; i<e.changedTouches.length; i++){
+        if(e.changedTouches[i].identifier === joystickId) {
+            updateJoystick(e.changedTouches[i]);
+            break;
         }
     }
-    </script>
+}, {passive:false});
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-        let camera, scene, renderer, gunGroup, muzzleLight;
-        const enemies = [];
-        const input = { moveX: 0, moveY: 0 };
-        const loader = new GLTFLoader();
-
-        init();
-
-        function init() {
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x050505);
-            scene.fog = new THREE.Fog(0x050505, 1, 35);
-
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.rotation.order = 'YXZ';
-            camera.position.set(0, 1.6, 0);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            document.body.appendChild(renderer.domElement);
-
-            // LIGHTING
-            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-            muzzleLight = new THREE.PointLight(0xffaa00, 0, 10);
-            camera.add(muzzleLight);
-            scene.add(camera);
-
-            // GROUND GRID
-            const grid = new THREE.GridHelper(200, 50, 0x00ffcc, 0x222222);
-            scene.add(grid);
-
-            // GUN SETUP
-            gunGroup = new THREE.Group();
-            camera.add(gunGroup);
-            
-            // Backup Gun (In case GLB fails)
-            const backupGun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.6), new THREE.MeshStandardMaterial({color: 0x444444}));
-            backupGun.position.set(0.3, -0.3, -0.6);
-            gunGroup.add(backupGun);
-
-            // Try loading model
-            loader.load('assets/models/gun.glb', (gltf) => {
-                gunGroup.remove(backupGun);
-                const model = gltf.scene;
-                model.position.set(0.3, -0.4, -0.5);
-                model.scale.set(0.4, 0.4, 0.4);
-                gunGroup.add(model);
-            });
-
-            setupControls();
-            spawnWave();
-            animate();
-            
-            // Remove loading screen after 3 seconds
-            setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 3000);
+stickZone.addEventListener('touchend', (e) => {
+    for(let i=0; i<e.changedTouches.length; i++){
+        if(e.changedTouches[i].identifier === joystickId) {
+            joystickId = null;
+            input.move = {x:0, y:0};
+            knob.style.transform = `translate(-50%, -50%)`;
+            break;
         }
+    }
+});
 
-        function setupControls() {
-            const joystick = document.getElementById('joystick-zone');
-            const knob = document.getElementById('knob');
+function updateJoystick(touch) {
+    const rect = stickZone.getBoundingClientRect();
+    const centerX = rect.left + rect.width/2;
+    const centerY = rect.top + rect.height/2;
+    
+    let x = touch.clientX - centerX;
+    let y = touch.clientY - centerY;
+    const dist = Math.min(Math.sqrt(x*x + y*y), joyRadius);
+    const angle = Math.atan2(y, x);
+    
+    // Visual update
+    const knobX = Math.cos(angle) * dist;
+    const knobY = Math.sin(angle) * dist;
+    knob.style.transform = `translate(calc(-50% + ${knobX}px), calc(-50% + ${knobY}px))`;
 
-            const move = (t) => {
-                const rect = joystick.getBoundingClientRect();
-                const x = t.clientX - rect.left - 50;
-                const y = t.clientY - rect.top - 50;
-                const dist = Math.min(Math.sqrt(x*x + y*y), 40);
-                const angle = Math.atan2(y, x);
-                input.moveX = (Math.cos(angle) * dist) / 40;
-                input.moveY = (Math.sin(angle) * dist) / 40;
-                knob.style.transform = `translate(${Math.cos(angle)*dist - 20}px, ${Math.sin(angle)*dist - 20}px)`;
-            };
+    // Logic update (-1 to 1)
+    input.move.x = knobX / joyRadius;
+    input.move.y = knobY / joyRadius;
+}
 
-            joystick.addEventListener('touchstart', e => move(e.touches[0]));
-            joystick.addEventListener('touchmove', e => move(e.touches[0]));
-            joystick.addEventListener('touchend', () => { input.moveX = 0; input.moveY = 0; knob.style.transform = 'translate(-50%,-50%)'; });
+// --- Shoot Logic ---
+document.getElementById('shootBtn').addEventListener('touchstart', (e)=>{ 
+    e.preventDefault(); 
+    e.stopPropagation(); // Stop click passing to aim zone
+    shoot(); 
+});
 
-            let px, py;
-            document.getElementById('look-layer').addEventListener('touchstart', e => { px = e.touches[0].clientX; py = e.touches[0].clientY; });
-            document.getElementById('look-layer').addEventListener('touchmove', e => {
-                camera.rotation.y -= (e.touches[0].clientX - px) * 0.006;
-                camera.rotation.x -= (e.touches[0].clientY - py) * 0.006;
-                camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
-                px = e.touches[0].clientX; py = e.touches[0].clientY;
-            });
+function shoot(){
+  // Recoil Animation (Small)
+  gunGroup.position.z += CONFIG.recoilDistance;
+  setTimeout(()=> { gunGroup.position.z -= CONFIG.recoilDistance }, 50);
 
-            document.getElementById('shoot-btn').addEventListener('touchstart', e => { e.preventDefault(); shoot(); });
-        }
+  // Raycast
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(0,0), camera);
+  const hits = ray.intersectObjects(state.zombies, true);
 
-        function spawnWave() {
-            for(let i=0; i<6; i++) {
-                const z = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.8, 0.8), new THREE.MeshStandardMaterial({color: 0x8b0000}));
-                const angle = Math.random() * Math.PI * 2;
-                z.position.set(Math.cos(angle)*20, 0.9, Math.sin(angle)*20);
-                z.userData = { hp: 30, speed: 0.03 + Math.random()*0.02 };
-                scene.add(z);
-                enemies.push(z);
+  if(hits.length > 0){
+    let hitObj = hits[0].object;
+    while(hitObj.parent && !state.zombies.includes(hitObj)) hitObj = hitObj.parent;
+    
+    if(state.zombies.includes(hitObj)){
+        hitObj.userData.hp -= 10;
+        // Simple hit flash
+        if(hitObj.traverse) hitObj.traverse((child)=>{
+            if(child.isMesh) {
+                const old = child.material.color.getHex();
+                child.material.color.setHex(0xffffff);
+                setTimeout(()=> child.material.color.setHex(old), 50);
             }
-        }
-
-        function shoot() {
-            muzzleLight.intensity = 15;
-            setTimeout(() => muzzleLight.intensity = 0, 50);
-            gunGroup.position.z += 0.1;
-            setTimeout(() => gunGroup.position.z -= 0.1, 50);
-
-            const ray = new THREE.Raycaster();
-            ray.setFromCamera(new THREE.Vector2(0,0), camera);
-            const hits = ray.intersectObjects(enemies);
-            if(hits.length > 0) {
-                const hit = hits[0].object;
-                hit.userData.hp -= 10;
-                if(hit.userData.hp <= 0) {
-                    scene.remove(hit);
-                    enemies.splice(enemies.indexOf(hit), 1);
-                    document.getElementById('kills').innerText = parseInt(document.getElementById('kills').innerText) + 1;
-                    if(enemies.length === 0) spawnWave();
-                }
-            }
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-            const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
-            forward.y = 0; right.y = 0;
-            camera.position.addScaledVector(forward, -input.moveY * 0.14);
-            camera.position.addScaledVector(right, input.moveX * 0.14);
-
-            enemies.forEach(z => {
-                const dir = new THREE.Vector3().subVectors(camera.position, z.position).normalize();
-                z.position.x += dir.x * z.userData.speed;
-                z.position.z += dir.z * z.userData.speed;
-                z.lookAt(camera.position.x, 0.9, camera.position.z);
-                if(z.position.distanceTo(camera.position) < 1.2) {
-                    let hp = parseInt(document.getElementById('hp').innerText) - 1;
-                    document.getElementById('hp').innerText = Math.max(0, hp);
-                    if(hp <= 0) location.reload();
-                }
-            });
-            renderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
         });
-    </script>
+
+        if(hitObj.userData.hp <= 0){
+            scene.remove(hitObj);
+            state.zombies.splice(state.zombies.indexOf(hitObj), 1);
+            document.getElementById('kills').innerText = parseInt(document.getElementById('kills').innerText) + 1;
+            spawnZombies(1);
+        }
+    }
+  }
+}
+
+// --- Game Loop ---
+function animate(){
+  requestAnimationFrame(animate);
+
+  // Movement Logic
+  if (input.move.x !== 0 || input.move.y !== 0) {
+      // Move relative to Player Yaw (ignoring pitch so we don't fly)
+      const forwardDir = player.yaw;
+      const rightDir = player.yaw - Math.PI/2;
+
+      // input.move.y is forward/back (-1 is forward usually in screen coords, but here +y is down)
+      // Standard joystick: Up(y<0) -> Forward. Down(y>0) -> Backward.
+      const dz = Math.cos(forwardDir) * input.move.y + Math.cos(rightDir) * input.move.x;
+      const dx = Math.sin(forwardDir) * input.move.y + Math.sin(rightDir) * input.move.x;
+
+      camera.position.z += dz * CONFIG.walkSpeed;
+      camera.position.x -= dx * CONFIG.walkSpeed;
+  }
+
+  // Zombie AI
+  state.zombies.forEach(z=>{
+    z.lookAt(camera.position.x, z.position.y, camera.position.z);
+    if(z.position.distanceTo(camera.position) > 1.5) {
+        z.translateZ(z.userData.speed);
+    } else {
+        // Damage
+        let hp = parseInt(document.getElementById('hp').innerText);
+        if(Math.random() < 0.05) hp -= 1; 
+        document.getElementById('hp').innerText = Math.max(0,hp);
+        if(hp<=0){ alert('GAME OVER'); location.reload(); }
+    }
+  });
+
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize', ()=>{
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
 </body>
 </html>
