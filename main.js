@@ -1,131 +1,143 @@
-/* =====================
-   WORLD & LIGHTING
-===================== */
-// Add a helper grid so the "Black Hall" has depth
-const grid = new THREE.GridHelper(200, 40, 0x444444, 0x222222);
-scene.add(grid);
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.9 })
-);
-floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
-scene.add(floor);
+// --- ENGINE SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020202);
+scene.fog = new THREE.Fog(0x020202, 1, 40);
 
-function wall(x, z, r = 0) {
-  const w = new THREE.Mesh(
-    new THREE.BoxGeometry(200, 20, 2),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  );
-  w.position.set(x, 10, z);
-  w.rotation.y = r;
-  scene.add(w);
-}
-wall(0, -100); wall(0, 100);
-wall(-100, 0, Math.PI / 2); wall(100, 0, Math.PI / 2);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.rotation.order = 'YXZ'; 
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const sun = new THREE.DirectionalLight(0xffffff, 1.0);
-sun.position.set(10, 20, 10);
-scene.add(sun);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
 
-/* =====================
-   ENEMIES (Chase the Camera)
-===================== */
-const enemies = [];
-const enemyGeo = new THREE.BoxGeometry(1, 2, 1);
-const enemyMat = new THREE.MeshStandardMaterial({ color: 0x8b0000 });
-
-function spawnEnemy(i) {
-  const e = new THREE.Mesh(enemyGeo, enemyMat);
-  const angle = (i / 8) * Math.PI * 2;
-  e.position.set(Math.cos(angle) * 25, 1, Math.sin(angle) * 25);
-  e.userData = { hp: 30, speed: 0.02 + Math.random() * 0.02 }; 
-  enemies.push(e);
-  scene.add(e);
-}
-for (let i = 0; i < 8; i++) spawnEnemy(i);
-
-function updateEnemies() {
-  enemies.forEach((e, i) => {
-    // IMPORTANT: Chase camera.position, not player.position
-    const dir = new THREE.Vector3()
-      .subVectors(camera.position, e.position);
-    dir.y = 0; // Stop them from flying
-    dir.normalize();
-
-    e.position.addScaledVector(dir, e.userData.speed);
-    e.lookAt(camera.position.x, 1, camera.position.z);
-
-    // Separation (Fixes the "Pond" issue)
-    enemies.forEach((o, j) => {
-      if (i !== j) {
-        const d = e.position.distanceTo(o.position);
-        if (d < 1.5) {
-          const push = new THREE.Vector3()
-            .subVectors(e.position, o.position)
-            .normalize()
-            .multiplyScalar(0.01);
-          e.position.add(push);
-        }
-      }
-    });
-  });
-}
-
-/* =====================
-   GUN (Attached to Camera)
-===================== */
-const gunGroup = new THREE.Group();
-camera.add(gunGroup); // This is the fix! Gun follows your eyes.
+// --- LIGHTING ---
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const light = new THREE.PointLight(0xffffff, 15);
+camera.add(light);
 scene.add(camera);
 
-// Create a placeholder if the GLB hasn't loaded yet
-const gun = new THREE.Mesh(
+// --- WORLD ---
+const grid = new THREE.GridHelper(200, 50, 0x00ffcc, 0x222222);
+scene.add(grid);
+
+// --- GUN (Attached to Camera) ---
+const gunGroup = new THREE.Group();
+camera.add(gunGroup);
+
+// Gun Placeholder
+const gunBox = new THREE.Mesh(
   new THREE.BoxGeometry(0.2, 0.2, 0.8),
   new THREE.MeshStandardMaterial({ color: 0x222222 })
 );
-gun.position.set(0.35, -0.35, -0.7); 
-gunGroup.add(gun);
+gunBox.position.set(0.35, -0.4, -0.7);
+gunGroup.add(gunBox);
 
-// If you have the model loader, it replaces this box
 const loader = new GLTFLoader();
 loader.load('assets/models/gun.glb', (gltf) => {
-    gunGroup.remove(gun); // remove box
+    gunGroup.remove(gunBox);
     const model = gltf.scene;
-    model.position.set(0.35, -0.4, -0.6);
+    model.position.set(0.35, -0.45, -0.6);
     model.scale.set(0.5, 0.5, 0.5);
     gunGroup.add(model);
 });
 
-function updateGunEffect() {
-  // Swaying effect while moving
-  const t = performance.now() * 0.002;
-  const isMoving = Math.abs(input.moveX) > 0 || Math.abs(input.moveY) > 0;
-  
-  if(isMoving) {
-      gunGroup.position.y = Math.sin(t * 4) * 0.02;
-      gunGroup.position.x = Math.cos(t * 2) * 0.01;
-  }
-}
+// --- ENEMIES ---
+const enemies = [];
+const spawnEnemy = () => {
+    const e = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0x8b0000}));
+    const angle = Math.random() * Math.PI * 2;
+    e.position.set(Math.cos(angle)*25, 1, Math.sin(angle)*25);
+    e.userData = { hp: 30, speed: 0.03 + Math.random() * 0.03 };
+    scene.add(e);
+    enemies.push(e);
+};
+for(let i=0; i<8; i++) spawnEnemy();
 
-/* =====================
-   GAME LOOP
-===================== */
+// --- CONTROLS LOGIC ---
+const input = { moveX: 0, moveY: 0 };
+const joystick = document.getElementById('joystick');
+const knob = document.getElementById('knob');
+
+// Joystick Move
+const handleMove = (t) => {
+    const rect = joystick.getBoundingClientRect();
+    const x = t.clientX - rect.left - 50;
+    const y = t.clientY - rect.top - 50;
+    const dist = Math.min(Math.sqrt(x*x+y*y), 40);
+    const angle = Math.atan2(y,x);
+    input.moveX = (Math.cos(angle)*dist)/40;
+    input.moveY = (Math.sin(angle)*dist)/40;
+    knob.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+};
+
+joystick.addEventListener('touchstart', e => handleMove(e.touches[0]));
+joystick.addEventListener('touchmove', e => handleMove(e.touches[0]));
+joystick.addEventListener('touchend', () => { 
+    input.moveX = 0; input.moveY = 0; 
+    knob.style.transform = 'translate(-50%, -50%)'; 
+});
+
+// Camera Look
+let px, py;
+document.getElementById('touch').addEventListener('touchstart', e => {
+    px = e.touches[0].clientX; py = e.touches[0].clientY;
+});
+document.getElementById('touch').addEventListener('touchmove', e => {
+    camera.rotation.y -= (e.touches[0].clientX - px) * 0.006;
+    camera.rotation.x -= (e.touches[0].clientY - py) * 0.006;
+    camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
+    px = e.touches[0].clientX; py = e.touches[0].clientY;
+});
+
+// Shooting
+document.getElementById('shoot').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    gunGroup.position.z += 0.1; // Recoil
+    setTimeout(() => gunGroup.position.z -= 0.1, 50);
+
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(0,0), camera);
+    const hits = ray.intersectObjects(enemies);
+    if(hits.length > 0) {
+        const hit = hits[0].object;
+        hit.userData.hp -= 10;
+        if(hit.userData.hp <= 0) {
+            scene.remove(hit);
+            enemies.splice(enemies.indexOf(hit), 1);
+            spawnEnemy();
+        }
+    }
+});
+
+// --- MAIN LOOP ---
 function animate() {
-  requestAnimationFrame(animate);
+    requestAnimationFrame(animate);
+    
+    // Movement
+    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+    const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+    forward.y = 0; right.y = 0;
+    camera.position.addScaledVector(forward, -input.moveY * 0.15);
+    camera.position.addScaledVector(right, input.moveX * 0.15);
 
-  // Movement Logic (Assuming input object from your HTML)
-  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  forward.y = 0; right.y = 0;
-  
-  camera.position.addScaledVector(forward, -input.moveY * 0.12);
-  camera.position.addScaledVector(right, input.moveX * 0.12);
+    // Enemy AI
+    enemies.forEach(e => {
+        const dir = new THREE.Vector3().subVectors(camera.position, e.position).normalize();
+        e.position.x += dir.x * e.userData.speed;
+        e.position.z += dir.z * e.userData.speed;
+        e.lookAt(camera.position.x, 1, camera.position.z);
+    });
 
-  updateEnemies();
-  updateGunEffect();
-
-  renderer.render(scene, camera);
+    renderer.render(scene, camera);
 }
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
