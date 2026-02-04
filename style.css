@@ -11,7 +11,7 @@ body {
   background: #000;
   font-family: "Orbitron", system-ui, sans-serif;
   overflow: hidden;
-  touch-action: none; /* Crucial for preventing browser zoom/scroll */
+  touch-action: none; /* Blocks browser scroll/zoom during gameplay */
   user-select: none;
   -webkit-user-select: none;
   width: 100vw;
@@ -19,14 +19,14 @@ body {
 }
 
 /* =========================
-   GAME LAYER
+   CANVAS (GAME LAYER)
 ========================= */
 canvas {
   position: fixed;
   inset: 0;
   display: block;
   z-index: 1;
-  /* Removed pixelated rendering for smoother 3D visuals */
+  /* Removed pixelated rendering for high-def 3D */
 }
 
 /* =========================
@@ -57,7 +57,7 @@ canvas {
   border-radius: 50%;
 }
 
-/* Added a small dot inside the crosshair for precision */
+/* Precision dot inside crosshair */
 #crosshair::after {
   content: '';
   position: absolute;
@@ -68,16 +68,19 @@ canvas {
 }
 
 /* =========================
-   CONTROLS (JOYSTICK & SHOOT)
+   UI CONTROLS (Common Style)
 ========================= */
 .control-element {
   position: fixed;
   z-index: 20;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  -webkit-tap-highlight-color: transparent; /* Removes mobile tap tint */
+  -webkit-tap-highlight-color: transparent; /* Removes blue box on mobile tap */
 }
 
+/* =========================
+   JOYSTICK
+========================= */
 #joystick {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
   left: calc(env(safe-area-inset-left, 0px) + 30px);
@@ -101,36 +104,34 @@ canvas {
   transition: transform 0.05s linear;
 }
 
+/* =========================
+   SHOOT BUTTON
+========================= */
 #shoot {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
   right: calc(env(safe-area-inset-right, 0px) + 40px);
-  width: 90px;
-  height: 90px;
+  width: 100px;
+  height: 100px;
   background: rgba(255, 0, 0, 0.15);
   border: 3px solid #ff0000;
   border-radius: 50%;
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
   cursor: pointer;
+  transition: transform 0.1s ease, background 0.1s ease;
 }
 
-/* Visual feedback when pressing shoot */
+/* Visual feedback when firing */
 #shoot:active {
   background: rgba(255, 0, 0, 0.4);
-  transform: scale(0.95);
+  transform: scale(0.92);
   box-shadow: 0 0 25px rgba(255, 0, 0, 0.6);
 }
 
 /* =========================
-   ACCESSIBILITY & FALLBACKS
+   ADAPTIVE FALLBACKS
 ========================= */
-@media (hover: hover) {
-  #shoot:hover {
-    background: rgba(255, 0, 0, 0.25);
-  }
-}
-
 @supports not (backdrop-filter: blur(8px)) {
-  .control-element {
-    background: rgba(20, 20, 20, 0.8);
+  #joystick, #shoot {
+    background-color: rgba(20, 20, 20, 0.85);
   }
 }
