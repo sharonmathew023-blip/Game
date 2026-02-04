@@ -1,32 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Mobile FPS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <link rel="stylesheet" href="./style.css">
+    <meta charset="UTF-8">
+    <title>Fixed Mobile FPS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; }
+        #hud { position: absolute; top: 20px; left: 20px; color: #00ffcc; z-index: 10; font-size: 20px; pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 2px solid #00ffcc; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 10; }
+        
+        /* Controls */
+        #joystick { position: absolute; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 20; }
+        #knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #00ffcc; border-radius: 50%; pointer-events: none; }
+        #shoot { position: absolute; bottom: 50px; right: 40px; width: 80px; height: 80px; background: rgba(255,0,0,0.3); border: 3px solid red; border-radius: 50%; z-index: 20; }
+        #touch-area { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; }
+    </style>
 </head>
-
 <body>
-  <div id="hud">HP: 100</div>
-  <div id="crosshair"></div>
 
-  <div id="joystick">
-    <div id="knob"></div>
-  </div>
+    <div id="hud">HP: <span id="hp">100</span></div>
+    <div id="crosshair"></div>
+    <div id="joystick"><div id="knob"></div></div>
+    <div id="shoot"></div>
+    <div id="touch-area"></div>
 
-  <div id="shoot"></div>
-  <div id="touch"></div>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
     }
-  }
-  </script>
+    </script>
 
-  <script type="module" src="main.js"></script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // --- SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050505);
+        scene.fog = new THREE.Fog(0x050505, 2, 30);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.rotation.order = 'YXZ'; 
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- LIGHTING (Fixes the Black Hall) ---
+        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambient);
+        const flashLight = new THREE.PointLight(0xffffff, 10, 20);
+        camera.add(flashLight);
+        scene.add(camera);
+
+        // --- ENVIRONMENT (Added a grid so you can see movement) ---
+        const grid = new THREE.GridHelper(100, 50, 0x444444, 0x222222);
+        grid.position.y = 0;
+        scene.add(grid);
+
+        // --- GUN SETUP (Fixes Floating) ---
+        let gun;
+        const loader = new GLTFLoader();
+        loader.load('assets/models/gun.glb', (gltf) => {
+            gun = gltf.scene;
+            gun.position.set(0.3, -0.4, -0.6); // Adjusted to look natural
+            gun.scale.set(0.5, 0.5, 0.5);
+            camera.add(gun); // This attaches it to your head!
+        }, undefined, () => {
+            // Placeholder gun if file is missing
+            const geo = new THREE.BoxGeometry(0.1, 0.1, 0.5);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+            gun = new THREE.Mesh(geo, mat);
+            gun.position.set(0.3, -0.3, -0.5);
+            camera.add(gun);
+        });
+
+        // --- ZOMBIE LOGIC ---
+        const enemies = [];
+        const zombieLoader = new GLTFLoader();
+        let zombieBase;
+        zombieLoader.load('assets/models/zombie.glb', (gltf) => { zombieBase = gltf.scene; });
+
+        function spawnZombie() {
+            const z = zombieBase ? zombieBase.clone() : new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.8, 0.8), new THREE.MeshStandardMaterial({color: 0xff0000}));
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 15 + Math.random() * 5;
+            z.position.set(Math.cos(angle)*dist, 0.9, Math.sin(angle)*dist);
+            z.userData = { hp: 30, speed: 0.02 + Math.random() * 0.03 };
+            scene.add(z);
+            enemies.push(z);
+        }
+        for(let i=0; i<8; i++) spawnZombie();
+
+        // --- CONTROLS ---
+        const input = { moveX: 0, moveY: 0 };
+        const knob = document.getElementById('knob');
+        
+        document.getElementById('joystick').addEventListener('touchstart', (e) => handleJoy(e.touches[0]));
+        document.getElementById('joystick').addEventListener('touchmove', (e) => handleJoy(e.touches[0]));
+        document.getElementById('joystick').addEventListener('touchend', () => {
+            input.moveX = 0; input.moveY = 0;
+            knob.style.left = '30px'; knob.style.top = '30px';
+        });
+
+        function handleJoy(t) {
+            const rect = document.getElementById('joystick').getBoundingClientRect();
+            const x = t.clientX - rect.left - 50;
+            const y = t.clientY - rect.top - 50;
+            const dist = Math.min(Math.sqrt(x*x + y*y), 40);
+            const angle = Math.atan2(y, x);
+            input.moveX = (Math.cos(angle) * dist) / 40;
+            input.moveY = (Math.sin(angle) * dist) / 40;
+            knob.style.left = (30 + Math.cos(angle) * dist) + 'px';
+            knob.style.top = (30 + Math.sin(angle) * dist) + 'px';
+        }
+
+        let px, py;
+        document.getElementById('touch-area').addEventListener('touchstart', e => { px = e.touches[0].clientX; py = e.touches[0].clientY; });
+        document.getElementById('touch-area').addEventListener('touchmove', e => {
+            camera.rotation.y -= (e.touches[0].clientX - px) * 0.005;
+            camera.rotation.x -= (e.touches[0].clientY - py) * 0.005;
+            camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
+            px = e.touches[0].clientX; py = e.touches[0].clientY;
+        });
+
+        document.getElementById('shoot').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const hits = ray.intersectObjects(enemies, true);
+            if(hits.length > 0) {
+                let hitObj = hits[0].object;
+                while(hitObj.parent && !enemies.includes(hitObj)) hitObj = hitObj.parent;
+                hitObj.userData.hp -= 10;
+                if(hitObj.userData.hp <= 0) {
+                    scene.remove(hitObj);
+                    enemies.splice(enemies.indexOf(hitObj), 1);
+                    spawnZombie();
+                }
+            }
+        });
+
+        // --- MAIN LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Movement
+            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+            const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+            forward.y = 0; right.y = 0;
+            camera.position.addScaledVector(forward, -input.moveY * 0.1);
+            camera.position.addScaledVector(right, input.moveX * 0.1);
+            camera.position.y = 1.6;
+
+            // Zombies follow (Fixes "Ponding")
+            enemies.forEach(z => {
+                const dir = new THREE.Vector3().subVectors(camera.position, z.position).normalize();
+                z.position.x += dir.x * z.userData.speed;
+                z.position.z += dir.z * z.userData.speed;
+                z.lookAt(camera.position.x, z.position.y, camera.position.z);
+                
+                if(z.position.distanceTo(camera.position) < 1.2) {
+                    let hp = parseInt(document.getElementById('hp').innerText) - 1;
+                    document.getElementById('hp').innerText = Math.max(0, hp);
+                    if(hp <= 0) location.reload();
+                }
+            });
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
 </html>
