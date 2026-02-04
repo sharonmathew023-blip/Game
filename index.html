@@ -3,178 +3,143 @@
 <head>
 <meta charset="UTF-8" />
 <title>Orbitron Strike</title>
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
 
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background: #000;
-  font-family: 'Orbitron', sans-serif;
-  touch-action: none;
-  user-select: none;
-  height: 100%;
-}
-
-canvas {
-  display: block;
-}
-
-#hud {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  color: #00ffcc;
-  z-index: 100;
-  font-size: 18px;
-  pointer-events: none;
-  text-shadow: 0 0 10px #00ffcc;
-}
-
-#crosshair {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #00ffcc;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 90;
-  pointer-events: none;
-}
-
-#joystick-zone {
-  position: fixed;
-  bottom: 40px;
-  left: 40px;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 1px solid rgba(0,255,204,0.3);
-  background: rgba(255,255,255,0.08);
-  z-index: 110;
-}
-
-#knob {
-  position: absolute;
-  top: 30px;
-  left: 30px;
-  width: 40px;
-  height: 40px;
-  background: #00ffcc;
-  border-radius: 50%;
-}
-
-#shoot-btn {
-  position: fixed;
-  bottom: 50px;
-  right: 50px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  border: 4px solid #ff0000;
-  background: rgba(255,0,0,0.2);
-  z-index: 110;
-}
-
-#look-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-}
-
-#loading {
-  position: fixed;
-  inset: 0;
-  background: #000;
-  color: #00ffcc;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  font-size: 20px;
-}
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; height: 100%; }
+  canvas { display: block; }
+  #hud { position: fixed; top: 20px; left: 20px; color: #00ffcc; z-index: 100; font-size: 18px; pointer-events: none; text-shadow: 0 0 10px #00ffcc; }
+  #crosshair { position: fixed; top: 50%; left: 50%; width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none; }
+  #joystick-zone { position: fixed; bottom: 40px; left: 40px; width: 120px; height: 120px; border-radius: 50%; border: 2px solid rgba(0,255,204,0.3); background: rgba(0,0,0,0.5); z-index: 110; }
+  #knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 15px #00ffcc; transition: transform 0.1s; }
+  #shoot-btn { position: fixed; bottom: 50px; right: 50px; width: 90px; height: 90px; border-radius: 50%; border: 4px solid #ff0000; background: rgba(255,0,0,0.3); z-index: 110; box-shadow: 0 0 20px #ff0000; active { background: rgba(255,0,0,0.6); } }
+  #loading { position: fixed; inset: 0; background: #000; color: #00ffcc; display: flex; align-items: center; justify-content: center; z-index: 1000; font-size: 20px; }
 </style>
 </head>
 
 <body>
 
 <div id="loading">CONNECTING TO NEURAL LINK…</div>
-<div id="hud">HP: <span id="hp">100</span> | KILLS: <span id="kills">0</span></div>
+<div id="hud">HP: 100 | KILLS: <span id="kills">0</span></div>
 <div id="crosshair"></div>
-<div id="look-layer"></div>
 <div id="joystick-zone"><div id="knob"></div></div>
-<div id="shoot-btn"></div>
+<button id="shoot-btn"></button>
 
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
 </script>
 
 <script type="module">
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-/* SCENE */
+/* SETUP */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x020202);
-scene.fog = new THREE.Fog(0x020202, 5, 50);
+scene.fog = new THREE.Fog(0x020202, 5, 40);
 
-/* CAMERA */
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  1000
-);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.6, 5);
 camera.rotation.order = 'YXZ';
-scene.add(camera);
 
-/* RENDERER */
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
-/* LIGHT */
-scene.add(new THREE.HemisphereLight(0x00ffcc, 0x000000, 1));
+/* ENVIRONMENT */
+const ambient = new THREE.HemisphereLight(0x00ffcc, 0x000000, 0.5);
+scene.add(ambient);
 
-/* LOADER */
-const loader = new GLTFLoader();
+const grid = new THREE.GridHelper(200, 100, 0x00ffcc, 0x222222);
+scene.add(grid);
 
-/* REMOVE LOADING */
-const loading = document.getElementById('loading');
-setTimeout(() => {
-  loading.style.display = 'none';
-}, 800);
+/* MOBILE CONTROLS LOGIC */
+let moveData = { x: 0, y: 0 };
+let lookData = { lon: 0, lat: 0 };
+const speed = 0.12;
+const clock = new THREE.Clock();
 
-/* RESIZE */
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// Joystick Logic
+const knob = document.getElementById('knob');
+const joystickZone = document.getElementById('joystick-zone');
+
+joystickZone.addEventListener('touchstart', (e) => { e.preventDefault(); }, {passive: false});
+joystickZone.addEventListener('touchmove', (e) => {
+    const rect = joystickZone.getBoundingClientRect();
+    const touch = e.targetTouches[0];
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    let dx = touch.clientX - centerX;
+    let dy = touch.clientY - centerY;
+    const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
+    const angle = Math.atan2(dy, dx);
+    
+    moveData.x = (Math.cos(angle) * dist) / 40;
+    moveData.y = (Math.sin(angle) * dist) / 40;
+    
+    knob.style.transform = `translate(${moveData.x * 30}px, ${moveData.y * 30}px)`;
 });
 
-/* LOOP */
-function animate() {
-  requestAnimationFrame(animate);
-  renderer.render(scene, camera);
-}
-animate();
-</script>
+joystickZone.addEventListener('touchend', () => {
+    moveData = { x: 0, y: 0 };
+    knob.style.transform = `translate(0,0)`;
+});
 
+// Touch Look Logic (Right side of screen)
+window.addEventListener('touchmove', (e) => {
+    if(e.touches[0].clientX > window.innerWidth / 2) {
+        const touch = e.touches[0];
+        camera.rotation.y -= touch.force || 0.05 * (e.movementX || 0) * 0.01; // Simplistic touch rotate
+    }
+}, {passive: true});
+
+/* SHOOTING */
+const shootBtn = document.getElementById('shoot-btn');
+shootBtn.addEventListener('touchstart', () => {
+    const laserGeo = new THREE.BoxGeometry(0.05, 0.05, 1);
+    const laserMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const laser = new THREE.Mesh(laserGeo, laserMat);
+    
+    laser.position.copy(camera.position);
+    laser.quaternion.copy(camera.quaternion);
+    scene.add(laser);
+    
+    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    
+    const moveLaser = () => {
+        laser.position.addScaledVector(direction, 0.8);
+        if(laser.position.length() < 100) requestAnimationFrame(moveLaser);
+        else scene.remove(laser);
+    };
+    moveLaser();
+});
+
+/* GAME LOOP */
+function update() {
+    const delta = clock.getDelta();
+    
+    // Movement relative to camera view
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    forward.y = 0; right.y = 0; // Keep on ground
+    
+    camera.position.addScaledVector(forward, -moveData.y * speed);
+    camera.position.addScaledVector(right, moveData.x * speed);
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(update);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+document.getElementById('loading').style.display = 'none';
+update();
+</script>
 </body>
 </html>
