@@ -1,20 +1,20 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+/* =====================
+   CONFIG
+===================== */
 const CONFIG = {
-  bgColor: 0x020202,
+  bgColor: 0x020205,
   cameraHeight: 1.6,
-  moveSpeed: 8.0, // Units per second
-  recoilStrength: 0.15,
-  enemyCount: 8,
-  lookSensitivity: 0.003
+  moveSpeed: 7.0, // Units per second
+  lookSensitivity: 0.003,
+  enemyCount: 6
 };
 
-/* --- ENGINE --- */
 const clock = new THREE.Clock();
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(CONFIG.bgColor);
-scene.fog = new THREE.Fog(CONFIG.bgColor, 2, 45);
+scene.fog = new THREE.Fog(CONFIG.bgColor, 1, 20);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(0, CONFIG.cameraHeight, 5);
@@ -22,67 +22,93 @@ camera.rotation.order = 'YXZ';
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
-/* --- LIGHTING --- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-const flash = new THREE.PointLight(0x00ffcc, 0, 10);
-camera.add(flash);
+/* =====================
+   ENVIRONMENT (ABANDONED BUILDING)
+===================== */
+const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x080808 });
+
+// Create a floor and a ceiling
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), wallMat);
+ceiling.rotation.x = Math.PI / 2;
+ceiling.position.y = 4;
+scene.add(ceiling);
+
+// Add dark pillars to create "rooms"
+for (let i = 0; i < 40; i++) {
+  const pillar = new THREE.Mesh(new THREE.BoxGeometry(2, 4, 2), wallMat);
+  pillar.position.set(
+    (Math.random() - 0.5) * 60,
+    2,
+    (Math.random() - 0.5) * 60
+  );
+  scene.add(pillar);
+}
+
+const light = new THREE.PointLight(0xffffff, 15, 12);
+camera.add(light); // Flashlight attached to player
 scene.add(camera);
 
-/* --- WORLD --- */
-scene.add(new THREE.GridHelper(200, 50, 0x00ffcc, 0x222222));
-
-/* --- GUN & RECOIL --- */
+/* =====================
+   WEAPON (PULSE RIFLE)
+===================== */
 const gunGroup = new THREE.Group();
-camera.add(gunGroup);
-let recoilOffset = 0;
-let kills = 0;
-
-const gunPlaceholder = new THREE.Mesh(
-  new THREE.BoxGeometry(0.15, 0.15, 0.7),
-  new THREE.MeshStandardMaterial({ color: 0x333333 })
+const gunBody = new THREE.Mesh(
+  new THREE.BoxGeometry(0.15, 0.2, 0.7),
+  new THREE.MeshStandardMaterial({ color: 0x222222 })
 );
-gunPlaceholder.position.set(0.3, -0.3, -0.5);
-gunGroup.add(gunPlaceholder);
+const barrel = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.02, 0.02, 0.4),
+  new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc })
+);
+barrel.rotation.x = Math.PI / 2;
+barrel.position.z = -0.4;
+gunGroup.add(gunBody, barrel);
+gunGroup.position.set(0.35, -0.35, -0.5);
+camera.add(gunGroup);
 
-/* --- ENEMIES --- */
+/* =====================
+   ENEMIES (VOID ORBS)
+===================== */
 const enemies = [];
-const spawnEnemy = () => {
-  const geometry = new THREE.BoxGeometry(1, 2, 1);
-  const material = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x550000 });
-  const enemy = new THREE.Mesh(geometry, material);
-  
-  const angle = Math.random() * Math.PI * 2;
-  const dist = 20 + Math.random() * 10;
-  enemy.position.set(Math.cos(angle) * dist, 1, Math.sin(angle) * dist);
-  enemy.userData = { hp: 30, speed: 1.5 + Math.random() * 2 };
-  
-  scene.add(enemy);
-  enemies.push(enemy);
-};
+function spawnEnemy() {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true, emissive: 0xff0000 })
+  );
+  mesh.position.set((Math.random() - 0.5) * 30, 1.2, (Math.random() - 0.5) * 30);
+  mesh.userData = { hp: 20, speed: 1.5 + Math.random() * 2 };
+  scene.add(mesh);
+  enemies.push(mesh);
+}
 for (let i = 0; i < CONFIG.enemyCount; i++) spawnEnemy();
 
-/* --- INPUT HANDLING --- */
-const input = { move: { x: 0, y: 0 }, look: { x: 0, y: 0 } };
+/* =====================
+   INPUT HANDLING
+===================== */
+const input = { move: { x: 0, y: 0 }, lastLook: null };
 const joystick = document.getElementById('joystick-zone');
 const knob = document.getElementById('knob');
 const shootBtn = document.getElementById('shoot-btn');
 
-// Movement
 joystick.addEventListener('touchmove', e => {
   e.preventDefault();
   const rect = joystick.getBoundingClientRect();
   const touch = e.touches[0];
-  const dx = touch.clientX - (rect.left + rect.width / 2);
-  const dy = touch.clientY - (rect.top + rect.height / 2);
+  const dx = touch.clientX - (rect.left + 55);
+  const dy = touch.clientY - (rect.top + 55);
   const dist = Math.min(Math.hypot(dx, dy), 40);
   const angle = Math.atan2(dy, dx);
-  
   input.move.x = Math.cos(angle) * (dist / 40);
   input.move.y = Math.sin(angle) * (dist / 40);
-  knob.style.transform = `translate(${input.move.x * 40}px, ${input.move.y * 40}px)`;
+  knob.style.transform = `translate(${input.move.x * 35}px, ${input.move.y * 35}px)`;
 });
 
 joystick.addEventListener('touchend', () => {
@@ -90,79 +116,73 @@ joystick.addEventListener('touchend', () => {
   knob.style.transform = 'translate(0,0)';
 });
 
-// Smooth Look (Right side of screen)
-let lastLook = null;
 window.addEventListener('touchmove', e => {
+  // Only look if touch is on the right half of screen
   const touch = Array.from(e.touches).find(t => t.clientX > window.innerWidth / 2);
-  if (!touch) { lastLook = null; return; }
+  if (!touch) { input.lastLook = null; return; }
   
-  if (lastLook) {
-    const dx = touch.clientX - lastLook.x;
-    const dy = touch.clientY - lastLook.y;
+  if (input.lastLook) {
+    const dx = touch.clientX - input.lastLook.x;
+    const dy = touch.clientY - input.lastLook.y;
     camera.rotation.y -= dx * CONFIG.lookSensitivity;
     camera.rotation.x -= dy * CONFIG.lookSensitivity;
-    camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x, -1.2, 1.2);
+    camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
   }
-  lastLook = { x: touch.clientX, y: touch.clientY };
+  input.lastLook = { x: touch.clientX, y: touch.clientY };
 }, { passive: false });
 
-/* --- SHOOTING --- */
+/* =====================
+   SHOOTING
+===================== */
 const raycaster = new THREE.Raycaster();
+let recoilAnim = 0;
+
 shootBtn.addEventListener('touchstart', e => {
   e.preventDefault();
+  recoilAnim = 0.15; // Set recoil
   
-  // Recoil effect
-  recoilOffset = CONFIG.recoilStrength;
-  flash.intensity = 15; // Muzzle flash
-  setTimeout(() => flash.intensity = 0, 50);
-
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
   const hits = raycaster.intersectObjects(enemies);
-
+  
   if (hits.length > 0) {
     const target = hits[0].object;
-    target.userData.hp -= 15;
-    target.material.emissive.setHex(0xff0000); // Hit flash
-    setTimeout(() => target.material.emissive.setHex(0x550000), 100);
-
+    target.userData.hp -= 10;
     if (target.userData.hp <= 0) {
       scene.remove(target);
       enemies.splice(enemies.indexOf(target), 1);
-      kills++;
-      document.getElementById('kills').innerText = kills;
       spawnEnemy();
+      const killsEl = document.getElementById('kills');
+      killsEl.innerText = parseInt(killsEl.innerText) + 1;
     }
   }
 });
 
-/* --- GAME LOOP --- */
-const moveVec = new THREE.Vector3();
+/* =====================
+   GAME LOOP
+===================== */
 function animate() {
   const delta = clock.getDelta();
   requestAnimationFrame(animate);
 
-  // Movement Logic
+  // Movement
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  forward.y = 0; right.y = 0; forward.normalize(); right.normalize();
-
-  moveVec.set(0, 0, 0)
-    .addScaledVector(forward, -input.move.y)
-    .addScaledVector(right, input.move.x);
+  forward.y = 0; right.y = 0; 
   
-  camera.position.addScaledVector(moveVec, CONFIG.moveSpeed * delta);
+  camera.position.addScaledVector(forward.normalize(), -input.move.y * CONFIG.moveSpeed * delta);
+  camera.position.addScaledVector(right.normalize(), input.move.x * CONFIG.moveSpeed * delta);
 
-  // Smooth Recoil Animation
-  gunGroup.position.z = THREE.MathUtils.lerp(gunGroup.position.z, recoilOffset, 0.3);
-  recoilOffset = THREE.MathUtils.lerp(recoilOffset, 0, 0.1);
+  // Gun Animation (Recoil recovery)
+  gunGroup.position.z = THREE.MathUtils.lerp(gunGroup.position.z, -0.5 + recoilAnim, 0.2);
+  recoilAnim = THREE.MathUtils.lerp(recoilAnim, 0, 0.1);
 
-  // Enemy AI
-  for (const enemy of enemies) {
+  // Enemy AI (Follow player)
+  enemies.forEach(enemy => {
     const dir = new THREE.Vector3().subVectors(camera.position, enemy.position);
-    dir.y = 0; 
+    dir.y = 0;
     enemy.position.addScaledVector(dir.normalize(), enemy.userData.speed * delta);
-    enemy.lookAt(camera.position.x, 1, camera.position.z);
-  }
+    enemy.rotation.y += delta * 2;
+  });
 
   renderer.render(scene, camera);
 }
