@@ -1,105 +1,92 @@
-/* GLOBAL - Standardized for Mobile */
+/* GLOBAL SETTINGS */
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #050505;
-  touch-action: none; /* Prevents browser pull-to-refresh */
+  background: #000;
+  touch-action: none;
   user-select: none;
-  font-family: 'Orbitron', sans-serif; /* Your specific font */
+  font-family: 'Orbitron', sans-serif;
 }
 
-/* RENDERER - Background Layer */
+/* CANVAS LAYER */
 canvas {
   position: fixed;
   inset: 0;
-  z-index: 1; /* Lowest visible layer */
+  z-index: 1; /* Background */
 }
 
-/* LOOK / AIM LAYER - Bottom interaction layer */
+/* THE LOOK LAYER - This was blocking you! */
 #touch {
   position: fixed;
   inset: 0;
-  z-index: 5; /* Above canvas, BELOW buttons */
+  z-index: 5; /* Lower than buttons */
   pointer-events: auto;
 }
 
-/* HUD - Top Left */
+/* HUD */
 #hud {
   position: fixed;
   top: 20px;
   left: 20px;
   color: #00ffcc;
-  font-size: 18px;
-  z-index: 50;
+  font-size: 20px;
+  z-index: 100;
   pointer-events: none;
-  text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 10px 15px;
-  border-left: 4px solid #00ffcc;
+  text-shadow: 0 0 10px #00ffcc;
 }
 
-/* CROSSHAIR - Exact Center */
+/* CROSSHAIR */
 #crosshair {
   position: fixed;
   top: 50%;
   left: 50%;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 255, 204, 0.8);
+  border: 2px solid #00ffcc;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  z-index: 40;
+  z-index: 90;
   pointer-events: none;
 }
 
-/* JOYSTICK - Left Side */
+/* JOYSTICK */
 #joystick {
   position: fixed;
   bottom: 40px;
   left: 40px;
-  width: 110px;
-  height: 110px;
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 204, 0.4);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  z-index: 100; /* Highest priority for touch */
-  touch-action: none;
+  z-index: 110; /* Highest priority */
 }
 
 #knob {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   background: #00ffcc;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 15px #00ffcc;
 }
 
-/* SHOOT BUTTON - Right Side */
+/* SHOOT BUTTON */
 #shoot {
   position: fixed;
-  bottom: 50px;
-  right: 50px;
+  bottom: 45px;
+  right: 45px;
   width: 90px;
   height: 90px;
+  background: rgba(255, 0, 0, 0.2);
+  border: 4px solid #ff0000;
   border-radius: 50%;
-  border: 3px solid #ff0055;
-  background: rgba(255, 0, 85, 0.15);
-  z-index: 100; /* Highest priority for touch */
-  box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: transform 0.1s ease;
-}
-
-#shoot:active {
-  transform: scale(0.9);
-  background: rgba(255, 0, 85, 0.4);
+  z-index: 110; /* Highest priority */
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.4);
 }
