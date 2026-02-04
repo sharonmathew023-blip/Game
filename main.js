@@ -1,77 +1,100 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// --- Scene Setup ---
+/* ---------------- SCENE ---------------- */
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 1.6, 5);
+scene.add(camera);
+
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-// --- Lighting (Crucial for GLTF Models) ---
-const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Soft white light
-scene.add(ambientLight);
+/* ---------------- LIGHT ---------------- */
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
-sunLight.position.set(5, 10, 7);
-scene.add(sunLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(5, 10, 5);
+dirLight.castShadow = true;
+scene.add(dirLight);
 
-// --- Game State ---
+/* ---------------- GAME STATE ---------------- */
 const gameState = {
-  gunMesh: null
+  gun: null,
+  zombie: null
 };
 
-// --- Load the Gun Model ---
+/* ---------------- LOADER ---------------- */
 const loader = new GLTFLoader();
-loader.setPath('./assets/models/');
 
-loader.load(
-  'gun.glb',
-  (gltf) => {
-    const gunModel = gltf.scene;
+/* ---------------- LOAD GUN ---------------- */
+loader.load('./assets/models/gun.glb', (gltf) => {
+  const gun = gltf.scene;
 
-    // 1. Clean up materials and shadows
-    gunModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-        // Ensures textures look correct with modern Three.js lighting
-        if (child.material) {
-          child.material.depthWrite = true;
-          child.material.transparent = false;
-        }
-      }
-    });
+  gun.traverse((m) => {
+    if (m.isMesh) {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    }
+  });
 
-    // 2. Transform the model
-    // Adjust these values! If your gun is invisible, it might be inside the camera.
-    gunModel.scale.set(0.2, 0.2, 0.2); 
-    gunModel.position.set(0.3, -0.3, -0.7); // Positioned to the bottom-right of screen
-    gunModel.rotation.set(0, Math.PI, 0);   // Rotate 180 degrees if it's facing backward
+  gun.scale.set(0.25, 0.25, 0.25);
+  gun.position.set(0.35, -0.35, -0.8);
+  gun.rotation.set(0, Math.PI, 0);
 
-    // 3. Attach to camera for FPS feel
-    camera.add(gunModel);
-    scene.add(camera); // Important: Camera must be in scene if objects are attached to it
-    
-    gameState.gunMesh = gunModel;
-    console.log("Gun loaded successfully");
-  },
-  (xhr) => {
-    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-  },
-  (error) => {
-    console.error('Error loading gun.glb:', error);
+  camera.add(gun);
+  gameState.gun = gun;
+});
+
+/* ---------------- LOAD ZOMBIE ---------------- */
+loader.load('./assets/models/zombie.glb', (gltf) => {
+  const zombie = gltf.scene;
+
+  zombie.traverse((m) => {
+    if (m.isMesh) {
+      m.castShadow = true;
+      m.receiveShadow = true;
+    }
+  });
+
+  zombie.position.set(0, 0, -10);
+  zombie.scale.set(1, 1, 1);
+  scene.add(zombie);
+
+  gameState.zombie = zombie;
+});
+
+/* ---------------- SHOOTING ---------------- */
+const raycaster = new THREE.Raycaster();
+const center = new THREE.Vector2(0, 0);
+
+window.addEventListener('click', () => {
+  if (!gameState.zombie) return;
+
+  raycaster.setFromCamera(center, camera);
+  const hit = raycaster.intersectObject(gameState.zombie, true);
+
+  if (hit.length > 0) {
+    console.log('Zombie hit');
+    gameState.zombie.position.z -= 1.5;
   }
-);
+});
 
-// --- Animation Loop ---
+/* ---------------- ANIMATE ---------------- */
 function animate() {
   requestAnimationFrame(animate);
 
-  // Subtle gun sway/bobbing effect if gun exists
-  if (gameState.gunMesh) {
-    const time = Date.now() * 0.002;
-    gameState.gunMesh.position.y = -0.3 + Math.sin(time) * 0.01;
+  if (gameState.gun) {
+    const t = Date.now() * 0.002;
+    gameState.gun.position.y = -0.35 + Math.sin(t) * 0.01;
   }
 
   renderer.render(scene, camera);
@@ -79,10 +102,9 @@ function animate() {
 
 animate();
 
-// Handle Window Resize
+/* ---------------- RESIZE ---------------- */
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-            
