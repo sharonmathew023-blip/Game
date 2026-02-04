@@ -1,43 +1,58 @@
-body {
+/* GLOBAL */
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: black;
+  background: #000;
   touch-action: none;
+  user-select: none;
+}
+
+/* RENDERER */
+canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
 }
 
 /* HUD */
 #hud {
   position: fixed;
-  top: 20px;
-  left: 20px;
+  top: 16px;
+  left: 16px;
   color: #00ffcc;
   font-family: monospace;
-  z-index: 10;
+  font-size: 14px;
+  z-index: 20;
+  pointer-events: none;
 }
 
-/* Crosshair */
+/* CROSSHAIR */
 #crosshair {
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 2px solid #00ffcc;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10;
+  z-index: 15;
+  pointer-events: none;
 }
 
-/* Joystick */
+/* JOYSTICK */
 #joystick {
   position: fixed;
-  bottom: 40px;
-  left: 40px;
+  bottom: 32px;
+  left: 32px;
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
-  z-index: 10;
+  background: rgba(255,255,255,0.08);
+  z-index: 30;
 }
 
 #knob {
@@ -51,31 +66,23 @@ body {
   transform: translate(-50%, -50%);
 }
 
-/* Shoot button */
+/* SHOOT BUTTON */
 #shoot {
   position: fixed;
-  bottom: 40px;
-  right: 40px;
+  bottom: 32px;
+  right: 32px;
   width: 90px;
   height: 90px;
   border-radius: 50%;
   border: 3px solid red;
   background: rgba(255,0,0,0.25);
-  z-index: 10;
+  z-index: 30;
 }
 
-/* Look layer */
+/* LOOK / AIM LAYER */
 #touch {
   position: fixed;
   inset: 0;
-  z-index: 5;
-  pointer-events: none;
-}
-
-/* Canvas must stay behind UI */
-canvas {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  z-index: 10;
+  pointer-events: auto;
 }
