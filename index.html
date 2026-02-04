@@ -1,220 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Orbitron Strike: Fixed</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Orbitron', sans-serif; touch-action: none; user-select: none; }
-        
-        /* THE UI STYLES */
-        #hud { position: fixed; top: 20px; left: 20px; color: #00ffcc; z-index: 100; font-size: 18px; pointer-events: none; text-shadow: 0 0 10px #00ffcc; }
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 14px; height: 14px; border: 2px solid #00ffcc; border-radius: 50%; transform: translate(-50%, -50%); z-index: 90; pointer-events: none; }
-        
-        #joystick-zone { position: fixed; bottom: 40px; left: 40px; width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; z-index: 110; border: 1px solid rgba(0,255,204,0.3); }
-        #knob { position: absolute; top: 30px; left: 30px; width: 40px; height: 40px; background: #00ffcc; border-radius: 50%; box-shadow: 0 0 15px #00ffcc; pointer-events: none; }
-        
-        #shoot-btn { position: fixed; bottom: 50px; right: 50px; width: 90px; height: 90px; background: rgba(255,0,0,0.2); border: 4px solid #ff0000; border-radius: 50%; z-index: 110; box-shadow: 0 0 20px rgba(255,0,0,0.4); }
-        #look-layer { position: fixed; inset: 0; z-index: 10; pointer-events: auto; }
-        #loading { position: fixed; inset: 0; background: #000; color: #00ffcc; display: flex; align-items: center; justify-content: center; z-index: 1000; font-size: 20px; }
-    </style>
+<meta charset="UTF-8" />
+<title>Orbitron Strike</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet" />
+
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #000;
+  font-family: 'Orbitron', sans-serif;
+  touch-action: none;
+  user-select: none;
+  height: 100%;
+}
+
+canvas {
+  display: block;
+}
+
+#hud {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  color: #00ffcc;
+  z-index: 100;
+  font-size: 18px;
+  pointer-events: none;
+  text-shadow: 0 0 10px #00ffcc;
+}
+
+#crosshair {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #00ffcc;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 90;
+  pointer-events: none;
+}
+
+#joystick-zone {
+  position: fixed;
+  bottom: 40px;
+  left: 40px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,255,204,0.3);
+  background: rgba(255,255,255,0.08);
+  z-index: 110;
+}
+
+#knob {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  width: 40px;
+  height: 40px;
+  background: #00ffcc;
+  border-radius: 50%;
+}
+
+#shoot-btn {
+  position: fixed;
+  bottom: 50px;
+  right: 50px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 4px solid #ff0000;
+  background: rgba(255,0,0,0.2);
+  z-index: 110;
+}
+
+#look-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+#loading {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  color: #00ffcc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-size: 20px;
+}
+</style>
 </head>
+
 <body>
 
-    <div id="loading">CONNECTING TO NEURAL LINK...</div>
-    <div id="hud">HP: <span id="hp">100</span> | KILLS: <span id="kills">0</span></div>
-    <div id="crosshair"></div>
-    <div id="look-layer"></div>
-    <div id="joystick-zone"><div id="knob"></div></div>
-    <div id="shoot-btn"></div>
+<div id="loading">CONNECTING TO NEURAL LINK…</div>
+<div id="hud">HP: <span id="hp">100</span> | KILLS: <span id="kills">0</span></div>
+<div id="crosshair"></div>
+<div id="look-layer"></div>
+<div id="joystick-zone"><div id="knob"></div></div>
+<div id="shoot-btn"></div>
 
-    <script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-    }
-    </script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // --- ENGINE SETUP ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x020202);
-        scene.fog = new THREE.Fog(0x020202, 2, 40);
+/* SCENE */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020202);
+scene.fog = new THREE.Fog(0x020202, 5, 50);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.rotation.order = 'YXZ'; 
-        
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        document.body.appendChild(renderer.domElement);
+/* CAMERA */
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+camera.position.set(0, 1.6, 5);
+camera.rotation.order = 'YXZ';
+scene.add(camera);
 
-        // --- LIGHTING ---
-        const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-        scene.add(ambient);
-        const pointLight = new THREE.PointLight(0x00ffcc, 10, 20);
-        camera.add(pointLight);
-        scene.add(camera);
+/* RENDERER */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
 
-        // --- ENVIRONMENT ---
-        const grid = new THREE.GridHelper(200, 50, 0x00ffcc, 0x222222);
-        scene.add(grid);
+/* LIGHT */
+scene.add(new THREE.HemisphereLight(0x00ffcc, 0x000000, 1));
 
-        // Walls
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        const wallGeo = new THREE.BoxGeometry(200, 15, 2);
-        const north = new THREE.Mesh(wallGeo, wallMat); north.position.set(0, 7.5, -100); scene.add(north);
-        const south = new THREE.Mesh(wallGeo, wallMat); south.position.set(0, 7.5, 100); scene.add(south);
-        const east = new THREE.Mesh(wallGeo, wallMat); east.position.set(100, 7.5, 0); east.rotation.y = Math.PI/2; scene.add(east);
-        const west = new THREE.Mesh(wallGeo, wallMat); west.position.set(-100, 7.5, 0); west.rotation.y = Math.PI/2; scene.add(west);
+/* LOADER */
+const loader = new GLTFLoader();
 
-        // --- PLAYER & GUN ---
-        let gunGroup = new THREE.Group();
-        camera.add(gunGroup);
-        
-        // Safety Gun (Box) - if GLB fails
-        const gunBox = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.7), new THREE.MeshStandardMaterial({color: 0x333333}));
-        gunBox.position.set(0.35, -0.4, -0.6);
-        gunGroup.add(gunBox);
+/* REMOVE LOADING */
+const loading = document.getElementById('loading');
+setTimeout(() => {
+  loading.style.display = 'none';
+}, 800);
 
-        const loader = new GLTFLoader();
-        loader.load('assets/models/gun.glb', (gltf) => {
-            gunGroup.remove(gunBox);
-            const model = gltf.scene;
-            model.scale.set(0.4, 0.4, 0.4);
-            model.position.set(0.35, -0.45, -0.6);
-            gunGroup.add(model);
-        });
+/* RESIZE */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-        // --- ENEMIES ---
-        const enemies = [];
-        let zombieBase;
-        loader.load('assets/models/zombie.glb', (gltf) => { zombieBase = gltf.scene; });
+/* LOOP */
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
 
-        function spawnZombie() {
-            const z = zombieBase ? zombieBase.clone() : new THREE.Mesh(new THREE.BoxGeometry(1, 2, 1), new THREE.MeshStandardMaterial({color: 0xff0000}));
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 20 + Math.random() * 10;
-            z.position.set(Math.cos(angle)*dist, 1, Math.sin(angle)*dist);
-            z.userData = { hp: 30, speed: 0.03 + Math.random() * 0.04 };
-            scene.add(z);
-            enemies.push(z);
-        }
-        for(let i=0; i<6; i++) spawnZombie();
-
-        // --- CONTROLS ---
-        const input = { moveX: 0, moveY: 0 };
-        const joystick = document.getElementById('joystick-zone');
-        const knob = document.getElementById('knob');
-
-        const moveUpdate = (t) => {
-            const rect = joystick.getBoundingClientRect();
-            const x = t.clientX - rect.left - 50;
-            const y = t.clientY - rect.top - 50;
-            const dist = Math.min(Math.sqrt(x*x + y*y), 40);
-            const angle = Math.atan2(y, x);
-            input.moveX = (Math.cos(angle) * dist) / 40;
-            input.moveY = (Math.sin(angle) * dist) / 40;
-            knob.style.transform = `translate(${Math.cos(angle)*dist - 20}px, ${Math.sin(angle)*dist - 20}px)`;
-        };
-
-        joystick.addEventListener('touchstart', e => moveUpdate(e.touches[0]));
-        joystick.addEventListener('touchmove', e => moveUpdate(e.touches[0]));
-        joystick.addEventListener('touchend', () => { 
-            input.moveX = 0; input.moveY = 0; 
-            knob.style.transform = `translate(-50%, -50%)`; 
-        });
-
-        let px, py;
-        document.getElementById('look-layer').addEventListener('touchstart', e => {
-            px = e.touches[0].clientX; py = e.touches[0].clientY;
-            document.getElementById('loading').style.display = 'none'; // Hide loader on first touch
-        });
-        document.getElementById('look-layer').addEventListener('touchmove', e => {
-            camera.rotation.y -= (e.touches[0].clientX - px) * 0.006;
-            camera.rotation.x -= (e.touches[0].clientY - py) * 0.006;
-            camera.rotation.x = Math.max(-1.4, Math.min(1.4, camera.rotation.x));
-            px = e.touches[0].clientX; py = e.touches[0].clientY;
-        });
-
-        document.getElementById('shoot-btn').addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            // Muzzle Flash
-            pointLight.intensity = 20;
-            setTimeout(() => pointLight.intensity = 10, 50);
-            
-            // Recoil
-            gunGroup.position.z += 0.1;
-            setTimeout(() => gunGroup.position.z -= 0.1, 50);
-
-            const ray = new THREE.Raycaster();
-            ray.setFromCamera(new THREE.Vector2(0,0), camera);
-            const hits = ray.intersectObjects(enemies, true);
-            if(hits.length > 0) {
-                let hit = hits[0].object;
-                while(hit.parent && !enemies.includes(hit)) hit = hit.parent;
-                hit.userData.hp -= 10;
-                if(hit.userData.hp <= 0) {
-                    scene.remove(hit);
-                    enemies.splice(enemies.indexOf(hit), 1);
-                    document.getElementById('kills').innerText = parseInt(document.getElementById('kills').innerText) + 1;
-                    spawnZombie();
-                }
-            }
-        });
-
-        // --- ANIMATION LOOP ---
-        function animate() {
-            requestAnimationFrame(animate);
-
-            // Movement Logic
-            const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
-            const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
-            forward.y = 0; right.y = 0;
-            camera.position.addScaledVector(forward, -input.moveY * 0.15);
-            camera.position.addScaledVector(right, input.moveX * 0.15);
-            camera.position.y = 1.6;
-
-            // Enemy Logic
-            enemies.forEach((z, i) => {
-                const dir = new THREE.Vector3().subVectors(camera.position, z.position).normalize();
-                z.position.x += dir.x * z.userData.speed;
-                z.position.z += dir.z * z.userData.speed;
-                z.lookAt(camera.position.x, 1, camera.position.z);
-
-                // Attack Player
-                if(z.position.distanceTo(camera.position) < 1.3) {
-                    let hp = parseInt(document.getElementById('hp').innerText) - 1;
-                    document.getElementById('hp').innerText = Math.max(0, hp);
-                    if(hp <= 0) { alert("TERMINATED"); location.reload(); }
-                }
-
-                // Simple collision avoidance
-                enemies.forEach((o, j) => {
-                    if(i !== j && z.position.distanceTo(o.position) < 1.5) {
-                        z.position.addScaledVector(new THREE.Vector3().subVectors(z.position, o.position).normalize(), 0.02);
-                    }
-                });
-            });
-
-            renderer.render(scene, camera);
-        }
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-        
-        // Start after a slight delay
-        setTimeout(() => { document.getElementById('loading').innerText = "TAP SCREEN TO SYNC"; }, 1000);
-        animate();
-    </script>
 </body>
 </html>
