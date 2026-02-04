@@ -1,258 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Mobile FPS – Fixed</title>
-<meta name="viewport" content="width=device-width, user-scalable=no">
-<style>
-  body { margin: 0; overflow: hidden; background: #000; touch-action: none; }
-
-  #hud {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    color: #00ffcc;
-    font-family: monospace;
-    z-index: 10;
-  }
-
-  #crosshair {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #00ffcc;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 10;
-  }
-
-  #joystick {
-    position: absolute;
-    bottom: 40px;
-    left: 40px;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.1);
-    z-index: 10;
-  }
-
-  #knob {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 40px;
-    height: 40px;
-    background: #00ffcc;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-  }
-
-  #shoot {
-    position: absolute;
-    bottom: 40px;
-    right: 40px;
-    width: 90px;
-    height: 90px;
-    border-radius: 50%;
-    border: 3px solid red;
-    background: rgba(255,0,0,0.2);
-    z-index: 10;
-  }
-
-  #touch {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <title>Mobile FPS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-<div id="hud">HP: 100 | WAVE: 1</div>
-<div id="crosshair"></div>
+  <div id="hud">HP: 100</div>
+  <div id="crosshair"></div>
 
-<div id="joystick"><div id="knob"></div></div>
-<div id="shoot"></div>
-<div id="touch"></div>
+  <div id="joystick">
+    <div id="knob"></div>
+  </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+  <div id="shoot"></div>
+  <div id="touch"></div>
 
-<script type="module">
-import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-/* ---------- SCENE ---------- */
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x050505);
-scene.fog = new THREE.Fog(0x050505, 5, 40);
-
-/* ---------- PLAYER + CAMERA ---------- */
-const player = new THREE.Object3D();
-scene.add(player);
-
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-camera.rotation.order = 'YXZ';
-camera.position.set(0, 1.6, 0);
-player.add(camera);
-
-/* ---------- RENDERER ---------- */
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
-document.body.appendChild(renderer.domElement);
-
-/* ---------- LIGHT ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
-const hemi = new THREE.HemisphereLight(0xffffff, 0x222222, 0.6);
-scene.add(hemi);
-
-const muzzleFlash = new THREE.PointLight(0xffaa00, 0, 5);
-muzzleFlash.position.set(0.4, -0.3, -0.9);
-camera.add(muzzleFlash);
-
-/* ---------- FLOOR ---------- */
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(100,100),
-  new THREE.MeshStandardMaterial({ color: 0x111111 })
-);
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
-
-/* ---------- GUN ---------- */
-const loader = new GLTFLoader();
-let gun;
-
-loader.load('assets/models/gun.glb', g => {
-  gun = g.scene;
-  gun.scale.set(0.25,0.25,0.25);
-  gun.position.set(0.35,-0.35,-0.8);
-  gun.rotation.set(0, Math.PI, 0);
-  camera.add(gun);
-}, undefined, () => {
-  gun = new THREE.Mesh(
-    new THREE.BoxGeometry(0.1,0.1,0.5),
-    new THREE.MeshStandardMaterial({ color: 0x00ffcc })
-  );
-  gun.position.set(0.35,-0.35,-0.8);
-  camera.add(gun);
-});
-
-/* ---------- ENEMIES ---------- */
-const enemies = [];
-
-for (let i=0;i<6;i++) {
-  const e = new THREE.Mesh(
-    new THREE.BoxGeometry(1,2,1),
-    new THREE.MeshStandardMaterial({ color: 0xff0000 })
-  );
-  const a = Math.random()*Math.PI*2;
-  e.position.set(Math.cos(a)*20,1,Math.sin(a)*20);
-  e.userData.hp = 30;
-  scene.add(e);
-  enemies.push(e);
-}
-
-/* ---------- INPUT ---------- */
-const input = { x:0, y:0 };
-
-const joy = document.getElementById('joystick');
-const knob = document.getElementById('knob');
-
-joy.addEventListener('touchmove', e => {
-  const r = joy.getBoundingClientRect();
-  const dx = e.touches[0].clientX - (r.left+r.width/2);
-  const dy = e.touches[0].clientY - (r.top+r.height/2);
-  const d = Math.min(Math.hypot(dx,dy),40);
-  const a = Math.atan2(dy,dx);
-  input.x = Math.cos(a)*d/40;
-  input.y = Math.sin(a)*d/40;
-  knob.style.transform = `translate(${Math.cos(a)*d-20}px, ${Math.sin(a)*d-20}px)`;
-});
-
-joy.addEventListener('touchend',()=>{
-  input.x = input.y = 0;
-  knob.style.transform = 'translate(-50%,-50%)';
-});
-
-/* ---------- LOOK ---------- */
-let px,py;
-document.getElementById('touch').addEventListener('touchstart',e=>{
-  px=e.touches[0].clientX;
-  py=e.touches[0].clientY;
-});
-
-document.getElementById('touch').addEventListener('touchmove',e=>{
-  const dx=e.touches[0].clientX-px;
-  const dy=e.touches[0].clientY-py;
-
-  player.rotation.y -= dx*0.005;
-  camera.rotation.x -= dy*0.005;
-  camera.rotation.x = THREE.MathUtils.clamp(camera.rotation.x,-1.4,1.4);
-
-  px=e.touches[0].clientX;
-  py=e.touches[0].clientY;
-});
-
-/* ---------- SHOOT ---------- */
-const ray = new THREE.Raycaster();
-
-document.getElementById('shoot').addEventListener('touchstart',()=>{
-  muzzleFlash.intensity = 15;
-  setTimeout(()=>muzzleFlash.intensity=0,50);
-
-  if (gun) gun.position.z -= 0.1;
-
-  ray.setFromCamera({x:0,y:0},camera);
-  const hit = ray.intersectObjects(enemies);
-
-  if (hit.length) {
-    hit[0].object.userData.hp -= 10;
-    if (hit[0].object.userData.hp <= 0) {
-      scene.remove(hit[0].object);
-      enemies.splice(enemies.indexOf(hit[0].object),1);
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
     }
   }
+  </script>
 
-  setTimeout(()=>{ if(gun) gun.position.z += 0.1; },50);
-});
-
-/* ---------- LOOP ---------- */
-function animate(){
-  requestAnimationFrame(animate);
-
-  const f = new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);
-  const r = new THREE.Vector3(1,0,0).applyQuaternion(player.quaternion);
-  f.y = r.y = 0;
-
-  player.position.addScaledVector(f,-input.y*0.12);
-  player.position.addScaledVector(r,input.x*0.12);
-
-  enemies.forEach(e=>{
-    const d = new THREE.Vector3().subVectors(player.position,e.position).normalize();
-    e.position.addScaledVector(d,0.04);
-    e.lookAt(player.position);
-  });
-
-  renderer.render(scene,camera);
-}
-animate();
-
-addEventListener('resize',()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-</script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
