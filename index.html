@@ -1,97 +1,43 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Valentine Trap</title>
-
-<style>
-:root{
-  --bg1:#ff6aa3;
-  --bg2:#ff8fb3;
-  --yes:#ff4d6d;
-  --no:#2f2f2f;
-  --text:#fff;
-}
-
-*{box-sizing:border-box}
-body{
-  margin:0;
-  height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:system-ui;
-  background:linear-gradient(135deg,var(--bg1),var(--bg2));
-  color:var(--text);
-}
-
-.card{
-  width:320px;
-  padding:24px;
-  border-radius:16px;
-  background:rgba(255,255,255,.1);
-  text-align:center;
-}
-
-.buttons{
-  display:flex;
-  gap:12px;
-  margin-top:16px;
-}
-
-button{
-  flex:1;
-  padding:12px;
-  border:none;
-  border-radius:12px;
-  font-size:16px;
-  font-weight:600;
-  cursor:pointer;
-}
-
-.yes{background:var(--yes);color:#fff}
-.no{background:var(--no);color:#fff;position:relative}
-
-.message{
-  margin-top:16px;
-  min-height:24px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Orbitron Strike: Mobile FPS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+    }
+    </script>
 </head>
-
 <body>
+    <div id="hit-flash"></div>
+    
+    <div id="hud">
+        HP: <span id="hp">100</span> | 
+        KILLS: <span id="kills">0</span> | 
+        WAVE: <span id="wave">1</span>
+    </div>
+    
+    <div id="crosshair"></div>
+    
+    <div id="joystick-zone" class="control-element">
+        <div id="knob"></div>
+    </div>
+    
+    <button id="shoot-btn" class="control-element"></button>
 
-<div class="card">
-  <h2>Will you be my Valentine?</h2>
+    <div id="game-over">
+        <h1>SYSTEM FAILURE</h1>
+        <p>SURVIVED TO WAVE: <span id="final-wave">1</span></p>
+        <p>TOTAL KILLS: <span id="final-kills">0</span></p>
+        <button id="restart-btn">REBOOT SYSTEM</button>
+    </div>
 
-  <div class="buttons">
-    <button class="yes" id="yes">YES 💘</button>
-    <button class="no" id="no">NO 💔</button>
-  </div>
-
-  <div class="message" id="msg"></div>
-</div>
-
-<script>
-const yes = document.getElementById("yes");
-const no = document.getElementById("no");
-const msg = document.getElementById("msg");
-
-yes.onclick = () => {
-  msg.textContent = "Good choice. You live another day 💖";
-};
-
-no.onmouseenter = () => {
-  const x = Math.random()*160 - 80;
-  const y = Math.random()*100 - 50;
-  no.style.transform = `translate(${x}px,${y}px)`;
-};
-
-no.onclick = () => {
-  msg.textContent = "നീട്ടി ഒരു ഊമ്പ് വെച്ചുകൊട് 🗿";
-};
-</script>
-
+    <script type="module" src="main.js"></script>
 </body>
 </html>
