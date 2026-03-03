@@ -11,7 +11,7 @@ body {
   background: #000;
   font-family: "Orbitron", system-ui, sans-serif;
   overflow: hidden;
-  touch-action: none; /* Blocks browser scroll/zoom during gameplay */
+  touch-action: none; 
   user-select: none;
   -webkit-user-select: none;
   width: 100vw;
@@ -19,14 +19,13 @@ body {
 }
 
 /* =========================
-   CANVAS (GAME LAYER)
+   CANVAS
 ========================= */
 canvas {
   position: fixed;
   inset: 0;
   display: block;
   z-index: 1;
-  /* Removed pixelated rendering for high-def 3D */
 }
 
 /* =========================
@@ -41,7 +40,10 @@ canvas {
   color: #00ffcc;
   font-size: clamp(14px, 4vw, 18px);
   text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
-  letter-spacing: 1px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px 15px;
+  border-left: 3px solid #00ffcc;
+  border-radius: 4px;
 }
 
 #crosshair {
@@ -57,7 +59,6 @@ canvas {
   border-radius: 50%;
 }
 
-/* Precision dot inside crosshair */
 #crosshair::after {
   content: '';
   position: absolute;
@@ -68,20 +69,18 @@ canvas {
 }
 
 /* =========================
-   UI CONTROLS (Common Style)
+   UI CONTROLS
 ========================= */
 .control-element {
   position: fixed;
   z-index: 20;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  -webkit-tap-highlight-color: transparent; /* Removes blue box on mobile tap */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
 }
 
-/* =========================
-   JOYSTICK
-========================= */
-#joystick {
+#joystick-zone {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
   left: calc(env(safe-area-inset-left, 0px) + 30px);
   width: 120px;
@@ -89,6 +88,7 @@ canvas {
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(0, 255, 204, 0.3);
   border-radius: 50%;
+  touch-action: none;
 }
 
 #knob {
@@ -97,17 +97,15 @@ canvas {
   left: 50%;
   width: 50px;
   height: 50px;
-  margin: -25px 0 0 -25px; /* Precise centering */
+  margin: -25px 0 0 -25px; 
   background: #00ffcc;
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
   transition: transform 0.05s linear;
+  pointer-events: none;
 }
 
-/* =========================
-   SHOOT BUTTON
-========================= */
-#shoot {
+#shoot-btn {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
   right: calc(env(safe-area-inset-right, 0px) + 40px);
   width: 100px;
@@ -117,21 +115,74 @@ canvas {
   border-radius: 50%;
   box-shadow: 0 0 15px rgba(255, 0, 0, 0.3);
   cursor: pointer;
-  transition: transform 0.1s ease, background 0.1s ease;
 }
 
-/* Visual feedback when firing */
-#shoot:active {
+#shoot-btn:active {
   background: rgba(255, 0, 0, 0.4);
   transform: scale(0.92);
   box-shadow: 0 0 25px rgba(255, 0, 0, 0.6);
 }
 
 /* =========================
-   ADAPTIVE FALLBACKS
+   EFFECTS & MENUS
 ========================= */
+#hit-flash {
+  position: fixed;
+  inset: 0;
+  background: red;
+  opacity: 0;
+  z-index: 100;
+  pointer-events: none;
+  transition: opacity 0.1s ease-out;
+}
+
+#game-over {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 0, 0, 0.9);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ff0000;
+  display: none; 
+}
+
+#game-over h1 {
+  font-size: clamp(30px, 8vw, 60px);
+  margin-bottom: 20px;
+  text-shadow: 0 0 20px red;
+}
+
+#game-over p {
+  font-size: 20px;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+#restart-btn {
+  margin-top: 30px;
+  padding: 15px 30px;
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: bold;
+  background: transparent;
+  color: #ff0000;
+  border: 2px solid #ff0000;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
+  text-transform: uppercase;
+}
+
+#restart-btn:active {
+  background: rgba(255, 0, 0, 0.2);
+}
+
 @supports not (backdrop-filter: blur(8px)) {
-  #joystick, #shoot {
+  #joystick-zone, #shoot-btn {
     background-color: rgba(20, 20, 20, 0.85);
   }
-}
+   }
+   
