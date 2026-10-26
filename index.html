@@ -323,29 +323,83 @@
             font-size: clamp(14px, 1.8dvh, 16px);
         }
 
+        /* Responsive sizing: use the shortest safe viewport dimension so controls stay usable
+           in both portrait phones and landscape phones/tablets without becoming huge on desktop. */
         .game-root .joystick-pad {
-            width: clamp(6.5rem, 16dvh, 8.25rem);
-            height: clamp(6.5rem, 16dvh, 8.25rem);
+            width: clamp(5.75rem, 22svh, 10rem);
+            height: clamp(5.75rem, 22svh, 10rem);
         }
 
         .game-root .crosshair {
-            width: clamp(2.75rem, 6dvh, 3.75rem);
-            height: clamp(2.75rem, 6dvh, 3.75rem);
+            width: clamp(2.75rem, 7svh, 4rem);
+            height: clamp(2.75rem, 7svh, 4rem);
         }
 
         @media (pointer: coarse), (max-width: 900px) {
-            .game-root #touch-fire {
-                width: clamp(4.5rem, 11dvh, 6rem) !important;
-                height: clamp(4.5rem, 11dvh, 6rem) !important;
+            .game-root #mobile-left-controls,
+            .game-root #mobile-right-controls {
+                transform: translateZ(0);
             }
+
+            .game-root #mobile-right-controls {
+                gap: clamp(0.5rem, 1.8svh, 1rem);
+            }
+
+            .game-root #touch-fire {
+                width: clamp(5.5rem, 20svh, 9.5rem) !important;
+                height: clamp(5.5rem, 20svh, 9.5rem) !important;
+                min-width: 88px !important;
+                min-height: 88px !important;
+                padding: clamp(0.75rem, 2svh, 1.25rem) !important;
+            }
+
             .game-root #touch-reload,
             .game-root #touch-sprint {
-                width: clamp(3rem, 7dvh, 4rem) !important;
-                height: clamp(3rem, 7dvh, 4rem) !important;
+                width: clamp(3.75rem, 11svh, 5.75rem) !important;
+                height: clamp(3.75rem, 11svh, 5.75rem) !important;
+                min-width: 58px !important;
+                min-height: 58px !important;
             }
+
+            .game-root #joystick-zone {
+                width: clamp(6.5rem, 24svh, 10.5rem) !important;
+                height: clamp(6.5rem, 24svh, 10.5rem) !important;
+            }
+
             .game-root #joystick-knob {
-                width: clamp(2.75rem, 6dvh, 3.5rem) !important;
-                height: clamp(2.75rem, 6dvh, 3.5rem) !important;
+                width: 44% !important;
+                height: 44% !important;
+                min-width: 48px !important;
+                min-height: 48px !important;
+                max-width: 72px !important;
+                max-height: 72px !important;
+            }
+
+            .game-root #touch-fire .svg-icon {
+                font-size: clamp(1.25rem, 4svh, 2rem) !important;
+            }
+
+            .game-root #touch-fire span,
+            .game-root #touch-reload span,
+            .game-root #touch-sprint span {
+                font-size: clamp(0.65rem, 2.1svh, 0.9rem) !important;
+            }
+
+            .game-root #btn-pause,
+            .game-root #btn-mute,
+            .game-root #btn-toggle-clutter,
+            .game-root #btn-fullscreen,
+            .game-root #btn-flip-landscape,
+            .game-root #btn-lock-cursor {
+                width: clamp(2.5rem, 7svh, 3.5rem) !important;
+                height: clamp(2.5rem, 7svh, 3.5rem) !important;
+            }
+        }
+
+        @media (min-width: 901px) and (pointer: fine) {
+            .game-root .joystick-pad {
+                width: clamp(6.5rem, 16svh, 8.25rem);
+                height: clamp(6.5rem, 16svh, 8.25rem);
             }
         }
     </style>
@@ -1119,7 +1173,8 @@
         const canvas = document.getElementById('three-canvas');
         const crosshairEl = document.getElementById('crosshair-wrapper');
         const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        const rendererPixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+        renderer.setPixelRatio(rendererPixelRatio);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -1140,7 +1195,7 @@
         function resizeRendererToDisplaySize() {
             const width = Math.max(1, Math.round(canvas.clientWidth));
             const height = Math.max(1, Math.round(canvas.clientHeight));
-            const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+            const pixelRatio = rendererPixelRatio;
             const targetWidth = Math.max(1, Math.floor(width * pixelRatio));
             const targetHeight = Math.max(1, Math.floor(height * pixelRatio));
 
