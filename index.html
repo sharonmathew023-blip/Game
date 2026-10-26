@@ -1375,8 +1375,18 @@
         let zombieModelTemplate = null;
         let zombieAssetReady = false;
         let zombieAssetError = null;
-        const zombieAssetLoader = new THREE.GLTFLoader();
+        // Never let an optional 3D asset loader failure stop the entire game.
+        // The CDN loader can be unavailable on some networks, so the procedural
+        // zombie fallback must still allow the renderer, arena and controls to boot.
+        const zombieAssetLoader = (window.THREE && typeof THREE.GLTFLoader === 'function')
+            ? new THREE.GLTFLoader()
+            : null;
         const zombieAssetReadyPromise = new Promise(resolve => {
+            if (!zombieAssetLoader) {
+                console.warn('[3D ASSETS] GLTFLoader unavailable; using procedural fallback.');
+                resolve(false);
+                return;
+            }
             zombieAssetLoader.load(
                 ZOMBIE_MODEL_URL,
                 gltf => {
