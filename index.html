@@ -402,6 +402,21 @@
                 height: clamp(6.5rem, 16svh, 8.25rem);
             }
         }
+    
+        /* ===== OUTBREAK 2.0 POLISH ===== */
+        #progression-hud { position: fixed; left: 50%; top: 4.9rem; transform: translateX(-50%); width: min(28rem, 42vw); z-index: 45; pointer-events:none; }
+        .progression-line { display:flex; align-items:center; gap:.55rem; padding:.35rem .55rem; border:1px solid rgba(148,163,184,.18); background:rgba(2,6,23,.62); backdrop-filter:blur(8px); border-radius:999px; box-shadow:0 8px 28px rgba(0,0,0,.25); }
+        .progression-xp { flex:1; height:.35rem; overflow:hidden; border-radius:999px; background:rgba(51,65,85,.8); }
+        .progression-xp > i { display:block; height:100%; width:100%; transform-origin:left; transform:scaleX(0); background:linear-gradient(90deg,#22d3ee,#a78bfa); transition:transform .18s ease; }
+        #boss-hud { position:fixed; left:50%; top:8.1rem; transform:translateX(-50%); width:min(38rem,62vw); z-index:46; pointer-events:none; opacity:0; transition:opacity .2s ease; }
+        #boss-hud.active { opacity:1; }
+        .boss-bar { height:.65rem; border:1px solid rgba(248,113,113,.55); background:rgba(15,23,42,.9); border-radius:999px; overflow:hidden; box-shadow:0 0 24px rgba(239,68,68,.25); }
+        #boss-fill { height:100%; width:100%; transform-origin:left; background:linear-gradient(90deg,#dc2626,#f97316,#facc15); transition:transform .12s linear; }
+        #storm-flash { position:fixed; inset:0; z-index:70; pointer-events:none; background:rgba(226,232,240,.75); opacity:0; mix-blend-mode:screen; }
+        #storm-flash.flash { animation:stormFlash .18s ease-out; }
+        @keyframes stormFlash { 0%{opacity:.55} 100%{opacity:0} }
+        @media (max-width:900px){ #progression-hud{top:3.9rem;width:min(25rem,72vw)} #boss-hud{top:7rem;width:72vw} }
+
     </style>
 </head>
 <body class="select-none overflow-hidden">
@@ -1116,6 +1131,10 @@
                 eyeColor: 0xf43f5e,
                 radarColor: '#c084fc'
             }
+            ,boss: {
+                name: 'The Warden', hp: 1800, speed: 2.55, scale: 2.05, damage: 42, score: 1800,
+                skinColor: 0x312e81, shirtColor: 0x111827, eyeColor: 0xff1744, radarColor: '#fb7185', isBoss: true
+            }
         };
 
         const ARENA_HALF_SIZE = 44;
@@ -1133,7 +1152,9 @@
             zombiesAlive: 0,
             waveTotalZombies: 0,
             spawnCooldown: 0,
-            waveClearTimer: 1.6
+            waveClearTimer: 1.6,
+            xp: 0, level: 1, xpToNext: 100, bossSpawned: false, event: '',
+            stormTimer: 6 + Math.random() * 6
         };
 
         let player = {
@@ -1153,7 +1174,7 @@
             recoilOffset: 0,
             bobPhase: 0,
             overdriveTimer: 0,
-            shotBuffer: 0
+            shotBuffer: 0, sensitivity: 1.0
         };
 
         // Input State
@@ -1659,7 +1680,7 @@
                 speed: spec.speed * (0.94 + Math.random() * 0.14) * (1 + (gameState.wave - 1) * 0.03),
                 walkCycle: Math.random() * Math.PI * 2,
                 attackCooldown: 0,
-                hitFlashTimer: 0
+                hitFlashTimer: 0, hitReactTimer: 0, aiPhase: Math.random() * Math.PI * 2, isBoss: Boolean(spec.isBoss)
             };
 
             // Attach reference for Raycaster identification
@@ -1673,19 +1694,19 @@
             headMeshes.push(head);
             bodyMeshes.push(torso, leftLeg, rightLeg, leftArm, rightArm);
             zombies.push(zombieObj);
+            if (zombieObj.isBoss) { document.getElementById('boss-name').textContent = spec.name.toUpperCase(); document.getElementById('boss-fill').style.transform = 'scaleX(1)'; document.getElementById('boss-hud').classList.add('active'); }
         }
 
         function spawnZombieOnPerimeter() {
             // Choose archetype based on current wave
             const r = Math.random();
             let typeKey = 'walker';
-            if (gameState.wave >= 2 && r < 0.30) {
-                typeKey = 'runner';
-            } else if (gameState.wave >= 3 && r >= 0.30 && r < 0.48) {
-                typeKey = 'exploder';
-            } else if (gameState.wave >= 4 && r >= 0.48 && r < 0.62) {
-                typeKey = 'brute';
-            }
+            if (gameState.wave % 10 === 0 && !gameState.bossSpawned) { typeKey = 'boss'; gameState.bossSpawned = true; }
+            else if (gameState.wave >= 15) {
+                if (r < 0.38) typeKey = 'runner'; else if (r < 0.66) typeKey = 'exploder'; else if (r < 0.82) typeKey = 'brute';
+            } else if (gameState.wave >= 2 && r < 0.30) typeKey = 'runner';
+            else if (gameState.wave >= 3 && r >= 0.30 && r < 0.48) typeKey = 'exploder';
+            else if (gameState.wave >= 4 && r >= 0.48 && r < 0.62) typeKey = 'brute';
 
             // Pick a spawn point at least 22m away from the player
             let sx = 0, sz = 0;
@@ -1712,6 +1733,7 @@
          * ============================================================================ */
         const raycaster = new THREE.Raycaster();
         const centerAimCoord = new THREE.Vector2(0, 0);
+        let screenShake = 0;
 
         function spawnParticleBurst(pos, colorHex, count = 12, speedScale = 1.0) {
             tmpColor.setHex(colorHex);
@@ -1840,6 +1862,7 @@
             wState.mag--;
             player.fireCooldown = cfg.fireRate;
             player.recoilOffset = Math.min(0.22, player.recoilOffset + cfg.recoilKick);
+            screenShake = Math.min(0.34, screenShake + cfg.recoilKick * 0.9);
             player.pitch = Math.min(Math.PI / 2.2, player.pitch + cfg.recoilKick * 0.35);
 
             // Visual & Audio Muzzle Flash
@@ -1914,7 +1937,8 @@
             if (z.hp <= 0) return;
 
             z.hp -= dmg;
-            z.hitFlashTimer = 0.1;
+            z.hitFlashTimer = 0.1; z.hitReactTimer = 0.13;
+            if (z.isBoss) document.getElementById('boss-fill').style.transform = `scaleX(${Math.max(0, z.hp / z.maxHp)})`;
 
             // Knockback impulse away from player
             const knockDir = new THREE.Vector3()
@@ -1982,6 +2006,8 @@
             }
 
             // Score & Kill Streak Updates
+            if (z.isBoss) { document.getElementById('boss-hud').classList.remove('active'); showAnnouncement('WARDEN ELIMINATED', '+1800 XP • ELITE HOSTILE DOWN', 2400); }
+
             gameState.kills++;
             if (wasHeadshot) gameState.headshots++;
             gameState.streak++;
@@ -1989,6 +2015,7 @@
             const streakMult = Math.min(5, 1 + Math.floor(gameState.streak / 3));
             const earned = Math.round(z.spec.score * (wasHeadshot ? 1.5 : 1.0) * streakMult);
             gameState.score += earned;
+            awardXP(Math.max(25, Math.round(z.spec.score * (wasHeadshot ? 1.25 : 1))));
 
             gameState.zombiesAlive = Math.max(0, gameState.zombiesAlive - 1);
             updateHUD();
@@ -2021,6 +2048,7 @@
         function damagePlayer(amount) {
             if (gameState.status !== 'playing') return;
             player.hp = Math.max(0, player.hp - amount);
+            screenShake = Math.min(0.5, screenShake + 0.22);
             sfx.playPlayerHurt();
 
             // Screen Damage Flash
@@ -2035,6 +2063,23 @@
             if (player.hp <= 0) {
                 triggerGameOver();
             }
+        }
+
+        function awardXP(amount) {
+            gameState.xp += amount;
+            while (gameState.xp >= gameState.xpToNext) {
+                gameState.xp -= gameState.xpToNext; gameState.level++; gameState.xpToNext = Math.round(gameState.xpToNext * 1.28 + 25);
+                player.maxHp += 5; player.hp = Math.min(player.maxHp, player.hp + 25); player.speed += 0.12;
+                sfx.playWaveHorn(); showAnnouncement(`LEVEL ${gameState.level}`, '+5 MAX HP • +25 HP • +MOVE SPEED', 1800);
+            }
+            updateProgressionHUD();
+        }
+        function updateProgressionHUD() {
+            const root = document.getElementById('progression-hud'); if (!root) return;
+            root.classList.toggle('hidden', gameState.status === 'menu' || gameState.status === 'gameover');
+            document.getElementById('hud-level').textContent = `LV ${gameState.level}`;
+            document.getElementById('hud-xp').textContent = `${gameState.xp}/${gameState.xpToNext} XP`;
+            document.getElementById('hud-xp-fill').style.transform = `scaleX(${Math.max(0, Math.min(1, gameState.xp / gameState.xpToNext))})`;
         }
 
         function showAnnouncement(title, subtitle, duration = 2800) {
@@ -2084,7 +2129,8 @@
             gameState.zombiesSpawned = 0;
             gameState.zombiesAlive = 0;
             gameState.spawnCooldown = 1.0;
-            gameState.waveClearTimer = 1.6;
+            gameState.waveClearTimer = 1.6; gameState.bossSpawned = false;
+            if (waveNum === 5) gameState.event = 'HORDE'; else if (waveNum === 10) gameState.event = 'WARDEN BOSS'; else if (waveNum === 15) gameState.event = 'NIGHTMARE'; else gameState.event = '';
 
             // Bonus Wave Survival Healing (+20 HP) & Ammo Top-up
             if (waveNum > 1) {
@@ -2098,6 +2144,9 @@
             let subText = 'ELIMINATE ALL INFECTED HOSTILES';
             if (waveNum === 2) subText = 'WARNING: CRIMSON RUNNERS DETECTED!';
             else if (waveNum === 3) subText = 'DANGER: TOXIC BIO-HAZBURSTERS INCOMING!';
+            else if (waveNum === 5) subText = 'HORDE EVENT: SPAWN RATE INCREASED!';
+            else if (waveNum === 10) subText = 'ELITE ALERT: THE WARDEN HAS ENTERED THE SECTOR!';
+            else if (waveNum === 15) subText = 'NIGHTMARE EVENT: ALL SPECIAL INFECTED ACTIVE!';
             else if (waveNum >= 4) subText = 'ALERT: ARMORED BRUTE TANKS DEPLOYED!';
 
             if (weaponNote) {
@@ -2184,6 +2233,7 @@
             document.getElementById('hud-ammo-res').textContent = wState.reserve === Infinity ? '∞' : wState.reserve;
 
             refreshWeaponSlots();
+            updateProgressionHUD();
         }
 
         /* ============================================================================
@@ -2294,8 +2344,20 @@
         let fpsFrameCount = 0;
         let fpsAccumTime = 0;
 
+        function updateStorm(dt) {
+            gameState.stormTimer -= dt;
+            if (gameState.stormTimer <= 0) {
+                gameState.stormTimer = 7 + Math.random() * 11;
+                if (Math.random() < 0.72) {
+                    const flash = document.getElementById('storm-flash'); flash.classList.remove('flash'); void flash.offsetWidth; flash.classList.add('flash');
+                    const oldIntensity = moonLight.intensity; moonLight.intensity = 2.6; setTimeout(() => { moonLight.intensity = oldIntensity; }, 120);
+                }
+            }
+        }
+
         function updateGame(dt) {
             if (gameState.status !== 'playing') return;
+            updateStorm(dt);
 
             // Live FPS Telemetry Counter
             fpsFrameCount++;
@@ -2406,6 +2468,8 @@
             camera.position.set(player.pos.x, player.pos.y + bobY, player.pos.z);
             camera.rotation.y = player.yaw;
             camera.rotation.x = player.pitch;
+            screenShake = Math.max(0, screenShake - dt * 2.8);
+            if (screenShake > 0) { camera.position.x += (Math.random() - 0.5) * screenShake; camera.position.y += (Math.random() - 0.5) * screenShake * 0.7; camera.position.z += (Math.random() - 0.5) * screenShake; }
 
             // Update 3D Weapon ViewModel Recoil & Reload Tilt
             player.recoilOffset = THREE.MathUtils.lerp(player.recoilOffset, 0, dt * 12);
@@ -2440,7 +2504,8 @@
                 gameState.spawnCooldown -= dt;
                 if (gameState.spawnCooldown <= 0) {
                     spawnZombieOnPerimeter();
-                    gameState.spawnCooldown = Math.max(0.45, 1.65 - gameState.wave * 0.11);
+                    const baseSpawn = gameState.wave === 5 ? 0.72 : (gameState.wave >= 15 ? 0.38 : 1.65);
+                    gameState.spawnCooldown = Math.max(gameState.wave >= 15 ? 0.28 : 0.45, baseSpawn - gameState.wave * 0.055);
                 }
             }
 
@@ -2466,9 +2531,12 @@
                 z.hpFill.lookAt(camera.position);
 
                 if (dist > 1.55) {
-                    toPlayer.normalize();
-                    z.group.position.addScaledVector(toPlayer, z.speed * dt);
-                    resolveObstacleCollisions(z.group.position, 0.55);
+                    toPlayer.normalize(); z.aiPhase += dt * (1.2 + z.speed * 0.15);
+                    const flankStrength = z.typeKey === 'runner' ? 0.55 : (z.typeKey === 'boss' ? 0.12 : 0.22);
+                    const side = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x); const weave = Math.sin(z.aiPhase) * flankStrength;
+                    const moveDir = toPlayer.clone().addScaledVector(side, weave).normalize(); z.group.position.addScaledVector(moveDir, z.speed * dt);
+                    if (z.hitReactTimer > 0) { z.hitReactTimer -= dt; z.group.rotation.z = Math.sin(z.hitReactTimer * 40) * 0.08; } else z.group.rotation.z = THREE.MathUtils.lerp(z.group.rotation.z, 0, dt * 10);
+                    resolveObstacleCollisions(z.group.position, z.isBoss ? 0.9 : 0.55);
 
                     // Zombie Separation so they don't stack inside one another
                     for (let j = i + 1; j < zombies.length; j++) {
@@ -2627,7 +2695,7 @@
             gameState.headshots = 0;
             gameState.streak = 0;
             gameState.streakTimer = 0;
-            gameState.waveClearTimer = 1.6;
+            gameState.waveClearTimer = 1.6; gameState.xp = 0; gameState.level = 1; gameState.xpToNext = 100; gameState.bossSpawned = false; gameState.event = ''; gameState.stormTimer = 5 + Math.random() * 5; screenShake = 0;
             gameState.status = 'playing';
 
             buildWeaponViewModel();
@@ -2764,7 +2832,7 @@
 
         window.addEventListener('mousemove', e => {
             if (gameState.status !== 'playing') return;
-            const sensitivity = 0.0024;
+            const sensitivity = 0.0024 * player.sensitivity;
             if (document.pointerLockElement === canvas) {
                 const delta = screenDeltaToLandscape(e.movementX, e.movementY);
                 // Clamp large input spikes to avoid camera jank
@@ -2871,8 +2939,8 @@
                     const dy = pt.y - lastTouchLookY;
                     lastTouchLookX = pt.x;
                     lastTouchLookY = pt.y;
-                    player.yaw -= dx * 0.0055;
-                    player.pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, player.pitch - dy * 0.0055));
+                    player.yaw -= dx * 0.0055 * player.sensitivity;
+                    player.pitch = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, player.pitch - dy * 0.0055 * player.sensitivity));
                 }
             }
         }, { passive: true });
@@ -2909,6 +2977,10 @@
                 try { canvas.requestPointerLock(); } catch (e) {}
             }
         });
+        const lookSensitivity = document.getElementById('look-sensitivity');
+        lookSensitivity.addEventListener('input', e => { player.sensitivity = Number(e.target.value); });
+        window.addEventListener('keydown', e => { if (e.code === 'KeyG' && gameState.status === 'playing') document.getElementById('game-settings-mini').classList.toggle('hidden'); });
+
         document.getElementById('btn-mute').addEventListener('click', () => {
             const muted = sfx.toggleMute();
             document.getElementById('icon-mute-use').setAttribute('href', muted ? '#icon-volume-off' : '#icon-volume-on');
@@ -2955,5 +3027,24 @@
             animate(lastTime);
         };
     </script>
+
+    <div id="progression-hud" class="hidden">
+        <div class="progression-line">
+            <span id="hud-level" class="text-cyan-300 font-display text-xs tracking-widest">LV 1</span>
+            <div class="progression-xp"><i id="hud-xp-fill"></i></div>
+            <span id="hud-xp" class="text-slate-300 font-mono text-[0.62rem]">0/100 XP</span>
+        </div>
+    </div>
+    <div id="boss-hud">
+        <div class="flex items-center justify-between mb-1 px-1">
+            <span class="text-red-300 font-display text-xs tracking-[.25em]">ELITE HOSTILE</span>
+            <span id="boss-name" class="text-white font-display text-sm tracking-widest">THE WARDEN</span>
+        </div>
+        <div class="boss-bar"><div id="boss-fill"></div></div>
+    </div>
+    <div id="storm-flash"></div>
+    <div id="game-settings-mini" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] px-3 py-2 rounded-xl border border-white/10 bg-slate-950/90 backdrop-blur text-[0.65rem] text-slate-300">
+        <label class="flex items-center gap-2">LOOK <input id="look-sensitivity" type="range" min="0.5" max="2" step="0.05" value="1" class="w-28"></label>
+    </div>
 </body>
 </html>
