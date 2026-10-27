@@ -795,6 +795,25 @@
         </div>
     </div>
 
+    <div id="progression-hud" class="hidden">
+        <div class="progression-line">
+            <span id="hud-level" class="text-cyan-300 font-display text-xs tracking-widest">LV 1</span>
+            <div class="progression-xp"><i id="hud-xp-fill"></i></div>
+            <span id="hud-xp" class="text-slate-300 font-mono text-[0.62rem]">0/100 XP</span>
+        </div>
+    </div>
+    <div id="boss-hud">
+        <div class="flex items-center justify-between mb-1 px-1">
+            <span class="text-red-300 font-display text-xs tracking-[.25em]">ELITE HOSTILE</span>
+            <span id="boss-name" class="text-white font-display text-sm tracking-widest">THE WARDEN</span>
+        </div>
+        <div class="boss-bar"><div id="boss-fill"></div></div>
+    </div>
+    <div id="storm-flash"></div>
+    <div id="game-settings-mini" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] px-3 py-2 rounded-xl border border-white/10 bg-slate-950/90 backdrop-blur text-[0.65rem] text-slate-300">
+        <label class="flex items-center gap-2">LOOK <input id="look-sensitivity" type="range" min="0.5" max="2" step="0.05" value="1" class="w-28"></label>
+    </div>
+
     <script>
         /* ============================================================================
          * 1. PROCEDURAL WEB AUDIO SYNTHESIZER (Zero External Sound Assets Needed)
@@ -3028,23 +3047,5 @@
         };
     </script>
 
-    <div id="progression-hud" class="hidden">
-        <div class="progression-line">
-            <span id="hud-level" class="text-cyan-300 font-display text-xs tracking-widest">LV 1</span>
-            <div class="progression-xp"><i id="hud-xp-fill"></i></div>
-            <span id="hud-xp" class="text-slate-300 font-mono text-[0.62rem]">0/100 XP</span>
-        </div>
-    </div>
-    <div id="boss-hud">
-        <div class="flex items-center justify-between mb-1 px-1">
-            <span class="text-red-300 font-display text-xs tracking-[.25em]">ELITE HOSTILE</span>
-            <span id="boss-name" class="text-white font-display text-sm tracking-widest">THE WARDEN</span>
-        </div>
-        <div class="boss-bar"><div id="boss-fill"></div></div>
-    </div>
-    <div id="storm-flash"></div>
-    <div id="game-settings-mini" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] px-3 py-2 rounded-xl border border-white/10 bg-slate-950/90 backdrop-blur text-[0.65rem] text-slate-300">
-        <label class="flex items-center gap-2">LOOK <input id="look-sensitivity" type="range" min="0.5" max="2" step="0.05" value="1" class="w-28"></label>
-    </div>
 </body>
 </html>
