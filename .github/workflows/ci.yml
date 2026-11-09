@@ -1,0 +1,76 @@
+name: Game HTML smoke checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - '.github/workflows/ci.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate HTML structure and essential metadata
+        run: |
+          python - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import sys
+          
+          path = Path("index.html")
+          if not path.is_file():
+              sys.exit("index.html is missing")
+          source = path.read_text(encoding="utf-8")
+          if not source.lstrip().lower().startswith("<!doctype html"):
+              sys.exit("index.html must start with an HTML5 doctype")
+          
+          class DocumentCheck(HTMLParser):
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.lang = False
+                  self.title = False
+                  self.viewport = False
+                  self.ids = set()
+                  self.duplicates = []
+                  self.in_title = False
+                  self.title_text = ""
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+                  if tag == "html" and attrs.get("lang"):
+                      self.lang = True
+                  if tag == "meta" and attrs.get("name", "").lower() == "viewport" and attrs.get("content"):
+                      self.viewport = True
+                  if tag == "title":
+                      self.in_title = True
+                  value = attrs.get("id")
+                  if value:
+                      if value in self.ids:
+                          self.duplicates.append(value)
+                      self.ids.add(value)
+              def handle_endtag(self, tag):
+                  if tag == "title":
+                      self.in_title = False
+              def handle_data(self, data):
+                  if self.in_title:
+                      self.title_text += data.strip()
+          
+          check = DocumentCheck()
+          check.feed(source)
+          if not check.lang:
+              sys.exit("html element must have a lang attribute")
+          if not check.title_text:
+              sys.exit("document title is missing or empty")
+          if not check.viewport:
+              sys.exit("viewport meta tag is missing")
+          if check.duplicates:
+              sys.exit("duplicate id attributes: " + ", ".join(sorted(set(check.duplicates))))
+          print("HTML smoke validation passed")
+          PY
